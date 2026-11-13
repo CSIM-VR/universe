@@ -27,12 +27,16 @@ namespace SpaceBetweenUs
 
         int _opened, _alive;
 
+        public int AsteroidsOpened => _opened;
+        public int IslandsAlive => _alive;
+
         void Start() => StartStep(1);
 
         /// <summary>Called by the central artifact when touched.</summary>
         public void RequestSwitch()
         {
             if (!GoalDone || Step >= 6) return;
+            if (switcher == null || switcher.IsSwitching) return;
             switcher.Switch();
             StartStep(Step + 1);
         }
@@ -41,7 +45,7 @@ namespace SpaceBetweenUs
         {
             Step = step;
             GoalDone = step == 1;
-            if (step < onStepStarted.Length) onStepStarted[step]?.Invoke();
+            if (onStepStarted != null && step < onStepStarted.Length) onStepStarted[step]?.Invoke();
             if (step == 6) onReveal?.Invoke();
             Debug.Log($"[Flow] Step {step} started");
         }

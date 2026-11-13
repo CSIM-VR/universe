@@ -35,16 +35,26 @@ namespace SpaceBetweenUs
 
         public UnityEvent<Role> onSwitched;
         public Role Current { get; private set; } = Role.Builder;
+        public bool IsSwitching { get; private set; }
+
+        /// <summary>Move where the Destroyer appears (step 4: next to the islands). Takes effect on the next switch.</summary>
+        public void SetDestroyerAnchor(Transform anchor) => destroyerAnchor = anchor;
 
         void Start() => Apply(Role.Builder);
 
-        public void Switch() => StartCoroutine(SwitchRoutine(Current == Role.Builder ? Role.Destroyer : Role.Builder));
+        public void Switch()
+        {
+            if (IsSwitching) return;
+            StartCoroutine(SwitchRoutine(Current == Role.Builder ? Role.Destroyer : Role.Builder));
+        }
 
         System.Collections.IEnumerator SwitchRoutine(Role next)
         {
+            IsSwitching = true;
             yield return Fade(0f, 1f);
             Apply(next);
             yield return Fade(1f, 0f);
+            IsSwitching = false;
             onSwitched?.Invoke(next);
         }
 
@@ -57,8 +67,8 @@ namespace SpaceBetweenUs
             if (anchor) xrOrigin.SetPositionAndRotation(anchor.position, anchor.rotation);
             xrOrigin.localScale = Vector3.one * (destroyer ? destroyerScale : 1f);
 
-            foreach (var g in builderOnly) if (g) g.SetActive(!destroyer);
-            foreach (var g in destroyerOnly) if (g) g.SetActive(destroyer);
+            if (builderOnly != null) foreach (var g in builderOnly) if (g) g.SetActive(!destroyer);
+            if (destroyerOnly != null) foreach (var g in destroyerOnly) if (g) g.SetActive(destroyer);
 
             int xray = LayerMask.NameToLayer(xrayLayerName);
             if (xray >= 0 && xrCamera)

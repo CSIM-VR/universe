@@ -1,51 +1,44 @@
 using UnityEngine;
-using UnityEngine.XR;
 
 namespace SpaceBetweenUs
 {
     /// <summary>
-    /// Builder's "Attract": while the trigger is held, nearby fragments float toward this hand.
-    /// Uses Unity's built-in XR input, so it works with any XR SDK.
+    /// Builder's "Attract": while the index trigger is held, nearby fragments float toward this hand.
+    /// Radius and distances are in the hand's own scale (so they still feel right if the rig is scaled).
     /// </summary>
     public class FragmentAttractor : MonoBehaviour
     {
-        public XRNode hand = XRNode.RightHand;   // LeftHand or RightHand
+        public Hand hand = Hand.Right;
         public float radius = 3f;
-        public float pullStrength = 4f;
-        public float stopDistance = 0.15f;
+        public float pullStrength = 2.5f;
+        public float stopDistance = 0.12f;
         public ParticleSystem beamEffect;
 
-        readonly Collider[] _hits = new Collider[32];
+        readonly Collider[] _hits = new Collider[64];
 
-        bool TriggerHeld()
-        {
-            var device = InputDevices.GetDeviceAtXRNode(hand);
-            return device.isValid
-                && device.TryGetFeatureValue(CommonUsages.trigger, out float value)
-                && value > 0.5f;
-        }
+        public bool Pulling { get; private set; }
 
         void FixedUpdate()
         {
-            bool pulling = TriggerHeld();
+            Pulling = XRHandInput.Trigger(hand);
 
             if (beamEffect != null)
             {
-                if (pulling && !beamEffect.isPlaying) beamEffect.Play();
-                if (!pulling && beamEffect.isPlaying) beamEffect.Stop();
+                if (Pulling && !beamEffect.isPlaying) beamEffect.Play();
+                if (!Pulling && beamEffect.isPlaying) beamEffect.Stop();
             }
-            if (!pulling) return;
+            if (!Pulling) return;
 
-            int n = Physics.OverlapSphereNonAlloc(transform.position, radius, _hits);
+            float scale = transform.lossyScale.x;
+            int n = Physics.OverlapSphereNonAlloc(transform.position, radius * scale, _hits, ~0, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < n; i++)
             {
                 var frag = _hits[i].GetComponentInParent<MaterialFragment>();
                 if (frag == null || frag.IsHeld) continue;
-                var rb = frag.GetComponent<Rigidbody>();
-                Vector3 to = transform.position - frag.transform.position;
-                if (to.magnitude < stopDistance) { rb.linearVelocity *= 0.8f; continue; }
-                rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, to.normalized * pullStrength, 0.1f);
+                frag.Attract(transform.position, pullStrength * scale, stopDistance * scale);
             }
         }
+
+        void OnDisable() => Pulling = false;
     }
 }

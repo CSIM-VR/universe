@@ -34,39 +34,80 @@ namespace SpaceBetweenUs
         public bool IsFilled { get; private set; }
         float _progress;
         Vector3 _lastPos;
+        MaterialFragment _tracked;
 
+        public float Progress => _progress;
+
+        // Place: a fragment released inside the slot (trigger event is enough)
         void OnTriggerStay(Collider other)
         {
-            if (IsFilled) return;
+            if (IsFilled || mode != Mode.Place) return;
             var frag = other.GetComponentInParent<MaterialFragment>();
-            if (frag == null || frag.type != accepts) return;
-
-            switch (mode)
-            {
-                case Mode.Place:
-                    if (!frag.IsHeld) Fill(frag);   // released inside the slot
-                    break;
-
-                case Mode.Pour:
-                    float tilt = Vector3.Angle(frag.transform.up, Vector3.up);
-                    bool pouring = frag.IsHeld && tilt > pourAngle;
-                    SetPourEffect(pouring, frag.transform.position);
-                    if (pouring) Advance(Time.deltaTime / pourTime, frag);
-                    break;
-
-                case Mode.HoldStill:
-                    // measure movement from position change (works whatever the grab's movement type is)
-                    float moved = (frag.transform.position - _lastPos).magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
-                    _lastPos = frag.transform.position;
-                    if (frag.IsHeld && moved < stillSpeed) Advance(Time.deltaTime / holdTime, frag);
-                    else if (_progress > 0f) { _progress = 0f; onProgress?.Invoke(0f); }
-                    break;
-            }
+            if (frag != null && frag.type == accepts && !frag.IsHeld && frag.WasGrabbed) Fill(frag);
         }
 
-        void OnTriggerExit(Collider other)
+        // Pour / HoldStill: actively look for a HELD fragment every physics step.
+        // (Doesn't rely on OnTriggerStay, and fragments drifting through the slot are ignored.)
+        readonly Collider[] _hits = new Collider[64];
+        int _dbgSteps, _dbgSeenHeld, _dbgHits;
+        float _dbgMaxTilt;
+        BoxCollider _box;
+
+        void FixedUpdate()
         {
-            if (mode == Mode.Pour) SetPourEffect(false, Vector3.zero);
+            if (IsFilled || mode == Mode.Place) return;
+            if (_box == null) _box = GetComponent<BoxCollider>();
+            if (_box == null) return;
+
+            MaterialFragment held = null;
+            Vector3 half = Vector3.Scale(_box.size * 0.5f, transform.lossyScale);
+            int n = Physics.OverlapBoxNonAlloc(transform.TransformPoint(_box.center), half, _hits, transform.rotation,
+                ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n && held == null; i++)
+            {
+                var f = _hits[i].GetComponentInParent<MaterialFragment>();
+                if (f != null && f.IsHeld && f.type == accepts) held = f;
+            }
+
+            float dt = Time.fixedDeltaTime;
+            _dbgSteps++;
+            if (held != null)
+            {
+                _dbgSeenHeld++;
+                _dbgMaxTilt = Mathf.Max(_dbgMaxTilt, Vector3.Angle(held.transform.up, Vector3.up));
+            }
+            _dbgHits = n;
+            if (mode == Mode.Pour)
+            {
+                bool pouring = held != null && Vector3.Angle(held.transform.up, Vector3.up) > pourAngle;
+                SetPourEffect(pouring, pouring ? held.transform.position : Vector3.zero);
+                if (pouring) Advance(dt / pourTime, held);
+                return;
+            }
+
+            // HoldStill: measure movement from position change (works whatever the grab's movement type is)
+            if (held == null || held != _tracked)
+            {
+                _tracked = held;
+                if (held != null) _lastPos = held.transform.position;
+                if (_progress > 0f) { _progress = 0f; onProgress?.Invoke(0f); }
+                return;
+            }
+            float moved = (held.transform.position - _lastPos).magnitude / dt;
+            _lastPos = held.transform.position;
+            if (moved < stillSpeed * transform.lossyScale.x) Advance(dt / holdTime, held);
+            else if (_progress > 0f) { _progress = 0f; onProgress?.Invoke(0f); }
+        }
+
+        /// <summary>Why isn't it filling? (used by the smoke test when a step fails)</summary>
+        public string DescribeState(MaterialFragment frag)
+        {
+            if (_box == null) _box = GetComponent<BoxCollider>();
+            Vector3 local = frag ? transform.InverseTransformPoint(frag.transform.position) - (_box ? _box.center : Vector3.zero) : Vector3.zero;
+            bool inside = _box && Mathf.Abs(local.x) <= _box.size.x / 2 && Mathf.Abs(local.y) <= _box.size.y / 2 && Mathf.Abs(local.z) <= _box.size.z / 2;
+            return $"active={gameObject.activeInHierarchy} progress={_progress:F2} fragAlive={(bool)frag} " +
+                   (frag ? $"held={frag.IsHeld} insideBox={inside} tilt={Vector3.Angle(frag.transform.up, Vector3.up):F0} " : "") +
+                   $"physicsSteps={_dbgSteps} sawHeld={_dbgSeenHeld} maxTilt={_dbgMaxTilt:F0} overlaps={_dbgHits}";
         }
 
         void Advance(float amount, MaterialFragment frag)

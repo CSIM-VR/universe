@@ -31,7 +31,15 @@ namespace SpaceBetweenUs
             if (groundSlot) groundSlot.onFilled.AddListener(OnGround);
             if (waterSlot) waterSlot.onFilled.AddListener(OnWater);
             if (lifeSlot) lifeSlot.onFilled.AddListener(OnLife);
-            if (lifeSlot) lifeSlot.gameObject.SetActive(false); // crystal slot appears once there is water
+            if (lifeSlot && !(waterSlot && waterSlot.IsFilled))
+                lifeSlot.gameObject.SetActive(false); // crystal slot appears once there is water
+        }
+
+        void OnDisable()
+        {
+            if (groundSlot) groundSlot.onFilled.RemoveListener(OnGround);
+            if (waterSlot) waterSlot.onFilled.RemoveListener(OnWater);
+            if (lifeSlot) lifeSlot.onFilled.RemoveListener(OnLife);
         }
 
         void OnGround() { life?.PlayStageByName("Moss"); CheckAlive(); }

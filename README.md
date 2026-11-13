@@ -108,3 +108,17 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 4. **Destroyer:** the last crystal asteroid sits next to the islands. Punch → fragments smash them; tap gently ×3 → the crystal drifts out safely.
 5. **Builder:** plant the last crystal; all three islands alive; a glowing deer comes to drink.
 6. **Reveal:** threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
+
+---
+
+## 8. Core-loop prototype (grey-box, playable now)
+
+**Menu → Space Between Us → Build Core Prototype Scene** generates `Assets/_Project/Scenes/Prototype_Core.unity`
+plus placeholder prefabs/materials (`Prefabs/Prototype`, `Materials/Prototype`), creates the tags/layer, and wires every event.
+Re-running it overwrites only those generated files, so don't hand-edit them: copy them out first.
+
+- **With a Quest:** trigger = attract, grip = grab, punch / tap with the blue hands, touch the gold artifact (low, to your right) to switch.
+- **Without a headset (Editor):** `DesktopRigSimulator` takes over. RMB+mouse = look, WASD/QE = move, wheel = reach, Tab = touch artifact.
+  Builder: Space = attract, LMB = grab/release, R = tilt (pour). Destroyer: LMB = punch, F = gentle tap.
+- **Automated check:** *Space Between Us → Run Core Loop Smoke Test* plays all 6 steps by itself; look for `[SmokeTest] PASSED` in the Console.
+  CI / headless: `Unity -batchmode -projectPath . -executeMethod SpaceBetweenUs.EditorTools.PrototypeSmokeTest.RunBatch -logFile -` (the editor must be closed).

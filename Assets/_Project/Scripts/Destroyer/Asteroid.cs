@@ -28,6 +28,8 @@ namespace SpaceBetweenUs
         public MaterialFragment crystalPrefab;
         public int fragmentsPerLayer = 3;
         public Transform islandsDriftTarget;
+        [Tooltip("Fragments spawn inside this radius around the centre (world units).")]
+        public float spawnSpread = 0.6f;
 
         [Header("Punch")]
         public float minBreakSpeed = 1.5f;
@@ -39,9 +41,16 @@ namespace SpaceBetweenUs
         public float minTapSpeed = 0.3f;
         public float maxSafeSpeed = 2.0f;
         public int tapsNeeded = 3;
+        [Tooltip("A violent break throws the fragments at these (the islands).")]
+        public Transform[] violentTargets;
+        public float violentFragmentSpeed = 12f;
 
         public UnityEvent onOpened;          // all layers released
         public UnityEvent onViolentBreak;    // careful mode failed
+        public UnityEvent<int> onTap;        // careful mode: number of gentle taps so far
+
+        public int LayerIndex => _layer;
+        public int Taps => _taps;
 
         int _layer;        // 0 shell, 1 inside, 2 core, 3 broken
         int _taps;
@@ -61,14 +70,19 @@ namespace SpaceBetweenUs
 
             if (carefulMode) HandleCareful(speed, hand.Velocity);
             else if (speed >= minBreakSpeed) OpenNextLayer(speed, hand.Velocity);
+            else return;
+
+            // a little kick in the controller that touched it
+            bool left = hand.name.ToLowerInvariant().Contains("left");
+            XRHandInput.Haptic(left ? Hand.Left : Hand.Right, speed > maxSafeSpeed ? 1f : 0.5f, 0.12f);
         }
 
         void HandleCareful(float speed, Vector3 dir)
         {
             if (speed > maxSafeSpeed)
             {
-                // too much force: everything flies out fast
-                while (_layer < 3) Release(LayerMaterial(_layer), speed * 2f, dir);
+                // too much force: everything flies out fast, straight into the islands
+                for (int l = _layer; l < 3; l++) Release(LayerMaterial(l), violentFragmentSpeed, dir, true);
                 _layer = 3;
                 ShowLayer(3);
                 onViolentBreak?.Invoke();
@@ -78,6 +92,8 @@ namespace SpaceBetweenUs
             if (speed < minTapSpeed) return;
 
             _taps++;
+            onTap?.Invoke(_taps);
+            StartCoroutine(Wobble());
             if (_taps >= tapsNeeded)
             {
                 // gentle: only the crystal comes out, slowly
@@ -96,7 +112,18 @@ namespace SpaceBetweenUs
             if (_layer >= 3) onOpened?.Invoke();
         }
 
-        void Release(MaterialType type, float speed, Vector3 dir)
+        System.Collections.IEnumerator Wobble()
+        {
+            Vector3 s = transform.localScale;
+            for (float t = 0f; t < 0.3f; t += Time.deltaTime)
+            {
+                transform.localScale = s * (1f + 0.06f * Mathf.Sin(t / 0.3f * Mathf.PI * 3f));
+                yield return null;
+            }
+            transform.localScale = s;
+        }
+
+        void Release(MaterialType type, float speed, Vector3 dir, bool aimAtIslands = false)
         {
             var prefab = type switch
             {
@@ -109,8 +136,16 @@ namespace SpaceBetweenUs
             int count = type == MaterialType.Crystal ? 1 : fragmentsPerLayer;
             for (int i = 0; i < count; i++)
             {
-                var f = Instantiate(prefab, transform.position, Random.rotation);
-                Vector3 v = (dir.normalized + Random.insideUnitSphere * 0.6f).normalized * speed;
+                var f = Instantiate(prefab, transform.position + Random.insideUnitSphere * spawnSpread, Random.rotation);
+                Vector3 d = dir.sqrMagnitude > 0.0001f ? dir.normalized : Random.onUnitSphere;
+                if (aimAtIslands && violentTargets != null && violentTargets.Length > 0)
+                {
+                    var target = violentTargets[Random.Range(0, violentTargets.Length)];
+                    if (target) d = (target.position - f.transform.position).normalized;
+                    f.Launch(d * speed, islandsDriftTarget);
+                    continue;
+                }
+                Vector3 v = (d + Random.insideUnitSphere * 0.6f).normalized * speed;
                 f.Launch(v, islandsDriftTarget);
             }
         }
