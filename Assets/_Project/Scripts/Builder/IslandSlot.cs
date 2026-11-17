@@ -7,7 +7,9 @@ namespace SpaceBetweenUs
     /// A glowing spot on an island that accepts one material, in one of three ways:
     ///  - Place     (Rock):    drop the rock inside the slot -> ground
     ///  - Pour      (Ice):     hold the ice above the lake bed, tilted > pourAngle, for pourTime -> water
+    ///                         (or just let go of it inside the lake: it melts in over settleTime)
     ///  - HoldStill (Crystal): keep the crystal in the slot, moving slower than stillSpeed, for holdTime -> lotus
+    ///                         (or let go of it inside the slot: it sinks in over settleTime)
     /// Needs a trigger collider sized to the area where the action counts.
     /// </summary>
     public class IslandSlot : MonoBehaviour
@@ -17,10 +19,17 @@ namespace SpaceBetweenUs
         public MaterialType accepts = MaterialType.Rock;
         public Mode mode = Mode.Place;
 
+        [Header("Place (rock): fragments let go near the slot are pulled in (there is no gravity in space)")]
+        public float magnetRadius = 0.35f;   // metres (scaled with the island)
+        public float magnetStrength = 1.5f;  // metres per second (scaled)
+
         [Header("Pour (ice)")]
         public float pourAngle = 45f;
         public float pourTime = 3f;
         public ParticleSystem pourEffect;
+
+        [Header("Let go inside the slot (ice melts in, crystal sinks in) - slower than doing the gesture")]
+        public float settleTime = 4.5f;
 
         [Header("Hold still (crystal)")]
         public float holdTime = 2f;
@@ -34,7 +43,8 @@ namespace SpaceBetweenUs
         public bool IsFilled { get; private set; }
         float _progress;
         Vector3 _lastPos;
-        MaterialFragment _tracked;
+        MaterialFragment _tracked, _settling;
+        Vector3 _settleScale;
 
         public float Progress => _progress;
 
@@ -46,6 +56,19 @@ namespace SpaceBetweenUs
             if (frag != null && frag.type == accepts && !frag.IsHeld && frag.WasGrabbed) Fill(frag);
         }
 
+        // A matching fragment the Builder let go of nearby drifts into the slot (there is no gravity in space)
+        void PullReleased()
+        {
+            float scale = transform.lossyScale.x;
+            int n = Physics.OverlapSphereNonAlloc(transform.position, magnetRadius * scale, _hits, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var frag = _hits[i].GetComponentInParent<MaterialFragment>();
+                if (frag != null && frag.type == accepts && !frag.IsHeld && frag.WasGrabbed)
+                    frag.Attract(transform.position, magnetStrength * scale, 0f);
+            }
+        }
+
         // Pour / HoldStill: actively look for a HELD fragment every physics step.
         // (Doesn't rely on OnTriggerStay, and fragments drifting through the slot are ignored.)
         readonly Collider[] _hits = new Collider[64];
@@ -55,18 +78,38 @@ namespace SpaceBetweenUs
 
         void FixedUpdate()
         {
-            if (IsFilled || mode == Mode.Place) return;
+            if (IsFilled) return;
+            PullReleased();
+            if (mode == Mode.Place) return;
             if (_box == null) _box = GetComponent<BoxCollider>();
             if (_box == null) return;
 
-            MaterialFragment held = null;
+            MaterialFragment held = null, settling = null;
             Vector3 half = Vector3.Scale(_box.size * 0.5f, transform.lossyScale);
             int n = Physics.OverlapBoxNonAlloc(transform.TransformPoint(_box.center), half, _hits, transform.rotation,
                 ~0, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < n && held == null; i++)
             {
                 var f = _hits[i].GetComponentInParent<MaterialFragment>();
-                if (f != null && f.IsHeld && f.type == accepts) held = f;
+                if (f == null || f.type != accepts) continue;
+                if (f.IsHeld) held = f;
+                else if (f.WasGrabbed && settling == null) settling = f;
+            }
+
+            // let go inside the slot: the fragment is held in place and slowly melts / sinks in
+            if (held == null && settling != null)
+            {
+                settling.Attract(transform.TransformPoint(_box.center), magnetStrength * transform.lossyScale.x, 0.02f * transform.lossyScale.x);
+                if (settling != _settling) { _settling = settling; _settleScale = settling.transform.localScale; }
+                SetPourEffect(mode == Mode.Pour, settling.transform.position);
+                Advance(Time.fixedDeltaTime / settleTime, settling);
+                if (!IsFilled) settling.transform.localScale = _settleScale * Mathf.Lerp(1f, 0.35f, _progress);
+                return;
+            }
+            if (_settling != null && _settling != settling)
+            {
+                _settling.transform.localScale = _settleScale;   // it drifted / was pulled out: back to full size
+                _settling = null;
             }
 
             float dt = Time.fixedDeltaTime;

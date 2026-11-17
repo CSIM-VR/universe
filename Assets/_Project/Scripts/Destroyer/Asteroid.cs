@@ -58,23 +58,30 @@ namespace SpaceBetweenUs
 
         void Start() => ShowLayer(0);
 
+        public bool IsOpen => _layer >= 3;
+
         void OnTriggerEnter(Collider other)
         {
             if (!other.CompareTag("DestroyerHand")) return;
-            if (Time.time - _lastHit < hitCooldown || _layer >= 3) return;
-
             var hand = other.GetComponentInParent<HandVelocityTracker>();
             if (hand == null) return;
-            _lastHit = Time.time;
-            float speed = hand.Speed;
+            bool left = hand.name.ToLowerInvariant().Contains("left");
+            ReceiveHit(hand.Speed, hand.Velocity, left ? Hand.Left : Hand.Right);
+        }
 
-            if (carefulMode) HandleCareful(speed, hand.Velocity);
-            else if (speed >= minBreakSpeed) OpenNextLayer(speed, hand.Velocity);
-            else return;
+        /// <summary>A hit with a physical hand speed (m/s). Also used by the button assist (trigger = punch, grip = tap).</summary>
+        public bool ReceiveHit(float speed, Vector3 direction, Hand hand)
+        {
+            if (Time.time - _lastHit < hitCooldown || _layer >= 3) return false;
+            _lastHit = Time.time;
+
+            if (carefulMode) HandleCareful(speed, direction);
+            else if (speed >= minBreakSpeed) OpenNextLayer(speed, direction);
+            else return false;
 
             // a little kick in the controller that touched it
-            bool left = hand.name.ToLowerInvariant().Contains("left");
-            XRHandInput.Haptic(left ? Hand.Left : Hand.Right, speed > maxSafeSpeed ? 1f : 0.5f, 0.12f);
+            XRHandInput.Haptic(hand, speed > maxSafeSpeed ? 1f : 0.5f, 0.12f);
+            return true;
         }
 
         void HandleCareful(float speed, Vector3 dir)

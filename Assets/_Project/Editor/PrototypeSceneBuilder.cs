@@ -22,7 +22,7 @@ namespace SpaceBetweenUs.EditorTools
         const string PrefabDir = "Assets/_Project/Prefabs/Prototype";
 
         const float DestroyerScale = 20f;
-        static readonly Vector3 DestroyerAnchorPos = new(0f, 0f, -14f);      // step 2: the asteroid field
+        static readonly Vector3 DestroyerAnchorPos = new(0f, 0f, 40f);       // step 2: the asteroid field, in the sky in front of the Builder
         static readonly Vector3 DestroyerLateAnchorPos = new(0f, -17f, -10f); // step 4: right next to the islands
         static readonly Vector3 DriftTargetPos = new(0f, 1.25f, 0.45f);       // where fragments gather for the Builder
         // asteroids sit at arm's reach of the scaled-up Destroyer (rig-local position x 20)
@@ -33,16 +33,33 @@ namespace SpaceBetweenUs.EditorTools
 
         // ------------------------------------------------------------------ entry points
 
+        /// <summary>When false (default), existing materials and prefabs are kept as they are, so art edits survive a rebuild.</summary>
+        static bool _overwriteAssets;
+
         [MenuItem("Space Between Us/Build Core Prototype Scene", priority = 0)]
         public static void BuildMenu()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             Build();
-            Debug.Log($"[Prototype] Built {ScenePath}. Press Play (no headset needed: desktop controls are shown in the view).");
+            Debug.Log($"[Prototype] Built {ScenePath} (kept your existing materials/prefabs). Press Play.");
+            // dress it with the imported asset packs right away (islands, plants, water, lotus, ice, threads...)
+            PrototypeArtSwap.ApplyMenu();
         }
 
-        public static void Build()
+        [MenuItem("Space Between Us/Reset Prototype Art (overwrite materials + prefabs)", priority = 1)]
+        public static void ResetMenu()
         {
+            if (!EditorUtility.DisplayDialog("Reset prototype art?",
+                    "This overwrites every material in Materials/Prototype and every prefab in Prefabs/Prototype " +
+                    "with the original grey-box versions. Your changes to them will be lost.", "Overwrite", "Cancel")) return;
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            Build(overwriteAssets: true);
+            Debug.Log($"[Prototype] Reset art and rebuilt {ScenePath}.");
+        }
+
+        public static void Build(bool overwriteAssets = false)
+        {
+            _overwriteAssets = overwriteAssets;
             EnsureFolder(MatDir);
             EnsureFolder(PrefabDir);
             EnsureFolder(Path.GetDirectoryName(ScenePath)!.Replace('\\', '/'));
@@ -83,6 +100,7 @@ namespace SpaceBetweenUs.EditorTools
             var anchors = new GameObject("Anchors").transform;
             var builderAnchor = Empty("Anchor_Builder", anchors, Vector3.zero);
             var destroyerAnchor = Empty("Anchor_Destroyer_Asteroids", anchors, DestroyerAnchorPos);
+            destroyerAnchor.rotation = Quaternion.Euler(0f, 180f, 0f);   // the giant faces back toward the islands
             var destroyerLateAnchor = Empty("Anchor_Destroyer_NextToIslands", anchors, DestroyerLateAnchorPos);
             var driftTarget = Empty("IslandsDriftTarget", anchors, DriftTargetPos);
 
@@ -127,6 +145,8 @@ namespace SpaceBetweenUs.EditorTools
             var builderR = MakeBuilderHand("BuilderHand_Right", rightAnchor, Hand.Right, m);
             var destroyerL = MakeDestroyerHand("DestroyerHand_Left", leftAnchor, m);
             var destroyerR = MakeDestroyerHand("DestroyerHand_Right", rightAnchor, m);
+            destroyerL.AddComponent<DestroyerButtonAssist>().hand = Hand.Left;
+            destroyerR.AddComponent<DestroyerButtonAssist>().hand = Hand.Right;
             destroyerL.SetActive(false);
             destroyerR.SetActive(false);
 
@@ -147,6 +167,7 @@ namespace SpaceBetweenUs.EditorTools
             var flow = systems.AddComponent<GameFlowManager>();
             var switcher = systems.AddComponent<PerspectiveSwitcher>();
             artifact.flow = flow;
+            systems.AddComponent<SwitchButton>().flow = flow;
             flow.switcher = switcher;
             flow.normalAsteroids = 2;
             switcher.xrOrigin = rig.transform;
@@ -162,7 +183,8 @@ namespace SpaceBetweenUs.EditorTools
             var reveal = new GameObject("Reveal").AddComponent<RevealThreads>();
             reveal.islands = System.Array.ConvertAll(islands, x => x.transform);
             reveal.asteroids = new[] { astA.transform, astB.transform, astC.transform };
-            reveal.threadMaterial = m.thread;
+            // soft flowing threads + halos once Apply Imported Art has created them, else the plain prototype line
+            reveal.threadMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{MatDir}/LightThread_Soft.mat") ?? m.thread;
             reveal.enableOnReveal = new GameObject[0];
 
             // event wiring
@@ -195,6 +217,7 @@ namespace SpaceBetweenUs.EditorTools
             sim.switcher = switcher;
             sim.artifact = artifact;
             MakeHints(head, flow, switcher, sim);
+            PrototypePalette.ApplyToScene();
         }
 
         // ------------------------------------------------------------------ rig
@@ -244,7 +267,7 @@ namespace SpaceBetweenUs.EditorTools
         static GameObject MakeBuilderHand(string name, Transform anchor, Hand hand, Mats m)
         {
             var go = HandBase(name, anchor, "PlayerHand", 0.04f);
-            Prim(PrimitiveType.Sphere, "Visual", go.transform, Vector3.zero, Vector3.one * 0.06f, m.builderHand);
+            Prim(PrimitiveType.Sphere, "Visual", go.transform, Vector3.zero, Vector3.one * 0.08f, m.builderHand);
             var beam = MakeParticles("AttractGlow", go.transform, Vector3.zero, m.goldParticle, 0.12f, 0.008f, 40f, 0.5f, false);
             var attractor = go.AddComponent<FragmentAttractor>();
             attractor.hand = hand;
@@ -257,7 +280,7 @@ namespace SpaceBetweenUs.EditorTools
         static GameObject MakeDestroyerHand(string name, Transform anchor, Mats m)
         {
             var go = HandBase(name, anchor, "DestroyerHand", 0.06f);
-            Prim(PrimitiveType.Sphere, "Visual", go.transform, Vector3.zero, Vector3.one * 0.11f, m.destroyerHand);
+            Prim(PrimitiveType.Sphere, "Visual", go.transform, Vector3.zero, Vector3.one * 0.12f, m.destroyerHand);
             return go;
         }
 
@@ -307,11 +330,13 @@ namespace SpaceBetweenUs.EditorTools
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             ((RectTransform)go.transform).sizeDelta = new Vector2(900f, 320f);
+            go.AddComponent<HudFollow>().head = head;   // floats with a dead zone instead of jittering with the head
 
             var text = new GameObject("Hint").AddComponent<Text>();
             text.transform.SetParent(go.transform, false);
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = 22;
+            text.supportRichText = true;
             text.alignment = TextAnchor.LowerCenter;
             text.color = new Color(1f, 1f, 1f, 0.9f);
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -353,8 +378,13 @@ namespace SpaceBetweenUs.EditorTools
 
         // ------------------------------------------------------------------ prefabs
 
+        static GameObject Existing(string name) =>
+            _overwriteAssets ? null : AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabDir}/{name}.prefab");
+
         static MaterialFragment MakeFragmentPrefab(string name, MaterialType type, Mats m)
         {
+            var existing = Existing(name);
+            if (existing && existing.GetComponent<MaterialFragment>()) return existing.GetComponent<MaterialFragment>();
             GameObject go;
             switch (type)
             {
@@ -392,6 +422,8 @@ namespace SpaceBetweenUs.EditorTools
 
         static GameObject MakeIslandPrefab(Mats m)
         {
+            var existing = Existing("Island");
+            if (existing && existing.GetComponent<Island>()) return existing;
             var root = new GameObject("Island");
             var island = root.AddComponent<Island>();
             var life = root.AddComponent<LifeGrowth>();
@@ -536,6 +568,8 @@ namespace SpaceBetweenUs.EditorTools
 
         static GameObject MakeAsteroidPrefab(Mats m, MaterialFragment rock, MaterialFragment ice, MaterialFragment crystal)
         {
+            var existing = Existing("Asteroid");
+            if (existing && existing.GetComponent<Asteroid>()) return existing;
             var root = new GameObject("Asteroid");
             root.transform.localScale = Vector3.one * 4.8f;   // ~fist-sized for the x20 Destroyer
             var col = root.AddComponent<SphereCollider>();
@@ -632,7 +666,8 @@ namespace SpaceBetweenUs.EditorTools
             static Material Lit(string name, Color baseColor, Color? emission = null, float smooth = 0.4f, bool transparent = false)
             {
                 var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                var mat = GetOrCreate(name, shader);
+                var mat = GetOrCreate(name, shader, out bool existed);
+                if (existed && !_overwriteAssets) return mat;   // keep the artist's version
                 mat.SetColor("_BaseColor", baseColor);
                 mat.SetColor("_Color", baseColor);
                 mat.SetFloat("_Smoothness", smooth);
@@ -655,6 +690,7 @@ namespace SpaceBetweenUs.EditorTools
                     mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
                     mat.renderQueue = (int)RenderQueue.Transparent;
                 }
+                PrototypePalette.ApplyTo(mat, name);   // palette colours override the grey-box defaults
                 EditorUtility.SetDirty(mat);
                 return mat;
             }
@@ -662,23 +698,26 @@ namespace SpaceBetweenUs.EditorTools
             static Material Particle(string name, Color color)
             {
                 var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
-                var mat = GetOrCreate("P_" + name, shader);
+                var mat = GetOrCreate("P_" + name, shader, out bool existed);
+                if (existed && !_overwriteAssets) return mat;
                 mat.SetColor("_BaseColor", color);
                 mat.SetColor("_Color", color);
+                PrototypePalette.ApplyTo(mat, "P_" + name);
                 EditorUtility.SetDirty(mat);
                 return mat;
             }
 
-            static Material GetOrCreate(string name, Shader shader)
+            static Material GetOrCreate(string name, Shader shader, out bool existed)
             {
                 string path = $"{MatDir}/{name}.mat";
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+                existed = mat != null;
                 if (mat == null)
                 {
                     mat = new Material(shader);
                     AssetDatabase.CreateAsset(mat, path);
                 }
-                else if (mat.shader != shader) mat.shader = shader;
+                else if (_overwriteAssets && mat.shader != shader) mat.shader = shader;
                 return mat;
             }
         }

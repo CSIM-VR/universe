@@ -86,6 +86,18 @@ namespace SpaceBetweenUs
 
         void Update()
         {
+            // XR can start a moment after Awake (e.g. the Meta XR Simulator): hand control back to the real rig
+            if (!forceSimulation && UnityEngine.XR.XRSettings.isDeviceActive)
+            {
+                var ovrRig = GetComponent("OVRCameraRig") as Behaviour;
+                if (ovrRig) ovrRig.enabled = true;
+                XRHandInput.SimulationActive = false;
+                Active = false;
+                enabled = false;
+                Debug.Log("[DesktopRigSimulator] XR device detected - desktop controls off, using the headset / XR Simulator.");
+                return;
+            }
+
             ReadDevices();
 
             XRHandInput.SetSimulated(Hand.Right, _trigger, _grip);

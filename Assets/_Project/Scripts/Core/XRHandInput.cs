@@ -30,6 +30,16 @@ namespace SpaceBetweenUs
             ? SimGrip[(int)hand]
             : OVRInput.Get(OVRInput.Axis1D.PrimaryHandTrigger, Controller(hand)) > 0.5f;
 
+        /// <summary>A / X button pressed this frame (always false in desktop simulation).</summary>
+        public static bool PrimaryButtonDown(Hand hand) =>
+            !SimulationActive && OVRInput.GetDown(OVRInput.Button.One, Controller(hand));
+
+        public static bool TriggerDown(Hand hand) =>
+            !SimulationActive && OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, Controller(hand));
+
+        public static bool GripDown(Hand hand) =>
+            !SimulationActive && OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger, Controller(hand));
+
         public static void Haptic(Hand hand, float amplitude, float seconds)
         {
             if (SimulationActive) return;

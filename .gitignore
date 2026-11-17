@@ -107,3 +107,27 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+# ---- Space Between Us: local-only assets (unused by the game, or too big for GitHub) ----
+# Original full-size Nebula 02 sky (the project uses a 4096x3072 copy)
+/_Backup/
+# Asset packs not used by the game (Apply Imported Art falls back without them)
+/[Aa]ssets/BigRookGames/
+/[Aa]ssets/BigRookGames.meta
+/[Aa]ssets/ValleyGrayCliff/
+/[Aa]ssets/ValleyGrayCliff.meta
+/[Aa]ssets/Houidisoft technology/
+/[Aa]ssets/Houidisoft technology.meta
+# Unused Nebula skies (only Nebula 02 is used)
+/[Aa]ssets/Nebula Skyboxes/Nebula_01_Cubemap.exr*
+/[Aa]ssets/Nebula Skyboxes/Nebula_03_Cubemap.exr*
+/[Aa]ssets/Nebula Skyboxes/Nebula_04_Cubemap.exr*
+/[Aa]ssets/_Project/Materials/Skybox/Sky_Nebula_01.mat*
+# Star Nest sky (replaced by Nebula 02; re-bake from the menu if needed)
+/[Aa]ssets/StarNestSkybox/
+/[Aa]ssets/StarNestSkybox.meta
+/[Aa]ssets/_Project/Materials/Skybox/Sky_StarNest.mat*
+/[Aa]ssets/_Project/Materials/Skybox/StarNest_Source.mat*
+/[Aa]ssets/_Project/Materials/Skybox/StarNest_Baked.asset*
+# Unity crash-recovery scenes
+/[Aa]ssets/_Recovery/
+/[Aa]ssets/_Recovery.meta
