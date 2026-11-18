@@ -23,7 +23,9 @@ namespace SpaceBetweenUs.EditorTools
 
         const float DestroyerScale = 20f;
         static readonly Vector3 DestroyerAnchorPos = new(0f, 0f, 40f);       // step 2: the asteroid field, in the sky in front of the Builder
-        static readonly Vector3 DestroyerLateAnchorPos = new(0f, -17f, -10f); // step 4: right next to the islands
+        // step 4: next to the islands, at the SAME height as the first Destroyer view (islands at the giant's feet,
+        // not at waist height), so the giant feels the same size both times. The last asteroid (11 m ahead) floats above the islands.
+        static readonly Vector3 DestroyerLateAnchorPos = new(0f, 0f, -10f);
         static readonly Vector3 DriftTargetPos = new(0f, 1.25f, 0.45f);       // where fragments gather for the Builder
         // asteroids sit at arm's reach of the scaled-up Destroyer (rig-local position x 20)
         static readonly Vector3 AsteroidLocalLeft = new(-0.25f, 1.35f, 0.55f);
@@ -205,6 +207,13 @@ namespace SpaceBetweenUs.EditorTools
             foreach (var island in islands)
             {
                 UnityEventTools.AddPersistentListener(island.onAlive, flow.IslandAlive);
+                // ruined by the violent break -> its materials burst back out, the Builder rebuilds it
+                island.onLost = new UnityEvent();
+                UnityEventTools.AddPersistentListener(island.onLost, flow.IslandLost);
+                island.rockPrefab = astA.rockPrefab;
+                island.icePrefab = astA.icePrefab;
+                island.crystalPrefab = astA.crystalPrefab;
+                island.driftTarget = driftTarget;
                 PrefabUtility.RecordPrefabInstancePropertyModifications(island);
                 PrefabUtility.RecordPrefabInstancePropertyModifications(island.transform);
             }
@@ -543,8 +552,7 @@ namespace SpaceBetweenUs.EditorTools
                 new LifeGrowth.Stage { name = "Lotus", growObjects = new[] { pad, flower, tree }, effects = new[] { fireflies }, delayBetween = 0.4f, growDuration = 1.8f },
             };
 
-            island.breakableParts = new[] { tree.gameObject, flower.gameObject, bush0.gameObject };
-            island.damageEffect = MakeParticles("DamageBurst", root.transform, Vector3.zero, m.dustParticle, 0.05f, 0.02f, 0f, 0.8f, false, burst: 25);
+            island.damageEffect = MakeParticles("DamageBurst", root.transform, Vector3.zero, m.dustParticle, 0.12f, 0.035f, 0f, 1.6f, false, burst: 1);   // Island.Burst() emits by hand
             island.onAlive = new UnityEvent();
 
             return SavePrefab(root, "Island");

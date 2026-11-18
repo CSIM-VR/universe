@@ -48,7 +48,9 @@ namespace SpaceBetweenUs
                 2 => destroyer + $"Punch the two asteroids open: shell (rock) > inside (ice) > core (crystal).\nOpened {flow.AsteroidsOpened}/2",
                 3 => builder + $"Trigger = attract fragments, grip = grab.\nRock: let go near the gold ring.  Ice: let go in the cyan ring (or hold + tilt to pour faster).\nCrystal: let go in the violet ring once there is water.\nIslands alive {flow.IslandsAlive}/2  (also give island 3 ground + lake)",
                 4 => destroyer + "The last asteroid floats right above the islands.\nTap it GENTLY 3 times. A hard punch smashes the islands!",
-                5 => builder + $"Plant the last crystal in island 3 (ground + lake first).\nIslands alive {flow.IslandsAlive}/3",
+                5 => builder + (flow.IslandsLost > 0
+                        ? $"The hard punch RUINED {flow.IslandsLost} island(s)! Their rock, ice and crystal flew back out.\nRebuild them, and give island 3 ground + lake + the last crystal.\nIslands alive {flow.IslandsAlive}/3"
+                        : $"Plant the last crystal in island 3 (ground + lake first).\nIslands alive {flow.IslandsAlive}/3"),
                 _ => "<size=34><b>Were we ever truly separate?</b></size>"
             };
             if (flow.GoalDone && flow.Step < 6) body += "\n\n>> Goal done - touch the artifact to switch <<";

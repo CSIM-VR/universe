@@ -29,6 +29,8 @@ namespace SpaceBetweenUs
 
         public int AsteroidsOpened => _opened;
         public int IslandsAlive => _alive;
+        /// <summary>How many islands a violent break ruined (they must be rebuilt).</summary>
+        public int IslandsLost { get; private set; }
 
         void Start() => StartStep(1);
 
@@ -55,6 +57,13 @@ namespace SpaceBetweenUs
             _opened++;
             if (Step == 2 && _opened >= normalAsteroids) GoalDone = true;
             if (Step == 4) GoalDone = true;
+        }
+
+        /// <summary>Island.onLost: an alive island was ruined by the violent break in step 4.</summary>
+        public void IslandLost()
+        {
+            _alive = Mathf.Max(0, _alive - 1);
+            IslandsLost++;
         }
 
         public void IslandAlive()

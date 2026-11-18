@@ -109,7 +109,7 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 1. **Builder:** barren islands, no materials.
 2. **Destroyer:** break two asteroids; fragments drift to the islands.
 3. **Builder:** rock = ground (moss), ice = lake (plants, fish, frogs, dragonflies), crystal = lotus (trees, fireflies). Two islands come alive.
-4. **Destroyer:** the last crystal asteroid sits next to the islands. Punch → fragments smash them; tap gently ×3 → the crystal drifts out safely.
+4. **Destroyer:** the last crystal asteroid floats above the islands. Tap gently ×3 → the crystal drifts out safely. A hard punch → everything flies out and **ruins** every island it hits: life withers, the slots are empty again, and the island's rock / ice / crystal burst back out, so the Builder has to rebuild it in step 5.
 5. **Builder:** plant the last crystal; all three islands alive; a glowing deer comes to drink.
 6. **Reveal:** threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
 

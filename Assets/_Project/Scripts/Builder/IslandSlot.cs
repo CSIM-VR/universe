@@ -169,6 +169,19 @@ namespace SpaceBetweenUs
             onFilled?.Invoke();
         }
 
+        /// <summary>Empty again (island ruined): glow back on, progress (lake level, ring) back to 0.</summary>
+        public void ResetSlot()
+        {
+            IsFilled = false;
+            _progress = 0f;
+            _tracked = null;
+            if (_settling) _settling.transform.localScale = _settleScale;
+            _settling = null;
+            SetPourEffect(false, Vector3.zero);
+            if (glowWhileEmpty) glowWhileEmpty.SetActive(true);
+            onProgress?.Invoke(0f);
+        }
+
         void SetPourEffect(bool on, Vector3 pos)
         {
             if (pourEffect == null) return;
