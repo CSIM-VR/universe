@@ -188,7 +188,13 @@ The original is kept locally in `_Backup/` (ignored). Do the same for any new te
 Meta XR Simulator works with Play mode: when an XR device is detected, `DesktopRigSimulator` turns itself off and the simulator's controllers drive the rig.
 Without the simulator, the desktop controls from §8 apply.
 
-### 9.6 Troubleshooting: magenta objects / Game view shows only the sky
+### 9.6 Building for Quest
+
+1. **Space Between Us → Build → Prepare Quest Build** (once): package name `com.csimvr.spacebetweenus`, only `Prototype_Core` in the build.
+2. *File → Build Profiles → **Meta Quest*** (active; Android, IL2CPP, ARM64, min API 32, OpenXR) → **Build** for an `.apk`, or **Build And Run** with the headset plugged in.
+3. Install on a Quest in developer mode: drag the `.apk` into Meta Quest Developer Hub, or `adb install -r universe.apk`. It shows under *Unknown sources* in the app library.
+
+### 9.7 Troubleshooting: magenta objects / Game view shows only the sky
 
 Run **Space Between Us → Debug → Report Broken Shaders**. It writes `Logs/ShaderReport.txt` (also in the Console): the active render pipeline, quality level, graphics API, and every shader in the scene with errors.
 
