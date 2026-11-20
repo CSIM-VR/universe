@@ -59,6 +59,7 @@ namespace SpaceBetweenUs.EditorTools
             DressRevealInScene();
             DressHandsInScene();
             DressHintsInScene();
+            DressSkyAndSoundInScene();
             AssetDatabase.SaveAssets();
             Debug.Log("[ArtSwap] Done:\n  " + string.Join("\n  ", Report) +
                       "\nPrefab instances in Prototype_Core update automatically. Press Play to see it.");
@@ -500,6 +501,68 @@ namespace SpaceBetweenUs.EditorTools
             mesh.SetNormals(nrm); mesh.SetTriangles(tris, 0);
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        /// <summary>Twinkling stars + shooting stars, and the SoundDirector with the generated placeholder sounds.</summary>
+        static void DressSkyAndSoundInScene()
+        {
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+            if (scene.path != PrototypeSceneBuilder.ScenePath) { Report.Add("(open Prototype_Core and run again for twinkling stars + sound)"); return; }
+
+            // ---- stars
+            var starsGo = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Stars");
+            var twinkle = Shader.Find("SpaceBetweenUs/TwinkleStar");
+            if (starsGo && twinkle && starsGo.TryGetComponent<ParticleSystem>(out var ps))
+            {
+                var mat = AssetDatabase.LoadAssetAtPath<Material>($"{MatDir}/Stars_Twinkle.mat");
+                if (!mat) { mat = new Material(twinkle); AssetDatabase.CreateAsset(mat, $"{MatDir}/Stars_Twinkle.mat"); }
+                mat.shader = twinkle;
+                mat.renderQueue = (int)RenderQueue.Transparent - 50;   // behind everything else that is transparent
+                var pr = starsGo.GetComponent<ParticleSystemRenderer>();
+                pr.sharedMaterial = mat;
+                pr.SetActiveVertexStreams(new List<ParticleSystemVertexStream>
+                    { ParticleSystemVertexStream.Position, ParticleSystemVertexStream.Color, ParticleSystemVertexStream.UV, ParticleSystemVertexStream.StableRandomX });
+                var main = ps.main;
+                main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.75f, 0.85f, 1f), new Color(1f, 0.93f, 0.8f));   // cool and warm stars
+
+                var thread = Shader.Find("SpaceBetweenUs/LightThread");
+                var shooting = starsGo.GetComponent<ShootingStars>();
+                if (!shooting) shooting = starsGo.AddComponent<ShootingStars>();
+                if (thread)
+                {
+                    var tm = AssetDatabase.LoadAssetAtPath<Material>($"{MatDir}/ShootingStar.mat");
+                    if (!tm) { tm = new Material(thread); AssetDatabase.CreateAsset(tm, $"{MatDir}/ShootingStar.mat"); }
+                    tm.shader = thread;
+                    tm.SetFloat("_Beads", 0f);
+                    tm.SetFloat("_CoreWidth", 0.25f);
+                    tm.SetFloat("_GlowWidth", 0.8f);
+                    tm.SetColor("_Color", new Color(1.6f, 1.6f, 1.8f));
+                    EditorUtility.SetDirty(tm);
+                    shooting.trailMaterial = tm;
+                }
+                EditorUtility.SetDirty(mat);
+                EditorUtility.SetDirty(starsGo);
+                Report.Add("Stars -> twinkling (TwinkleStar shader) + a shooting star every 8-15 s");
+            }
+            else if (!twinkle) Report.Add("TwinkleStar shader not imported yet - run again for twinkling stars");
+
+            // ---- sound
+            var clips = SoundSynth.EnsureClips(false);
+            AudioClip C(string n) => clips.TryGetValue(n, out var c) ? c : null;
+            var audioGo = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Audio") ?? new GameObject("Audio");
+            var sd = audioGo.GetComponent<SoundDirector>();
+            if (!sd) sd = audioGo.AddComponent<SoundDirector>();
+            sd.ambBuilder = C("amb_builder"); sd.ambDestroyer = C("amb_destroyer");
+            sd.punch = C("punch"); sd.tap = C("tap"); sd.violent = C("violent"); sd.islandRuin = C("island_ruin");
+            sd.attractLoop = C("attract_loop"); sd.grab = C("grab"); sd.placeRock = C("place_rock");
+            sd.pourLoop = C("pour_loop"); sd.waterFill = C("water_fill"); sd.crystal = C("crystal");
+            sd.grow = C("grow"); sd.islandAlive = C("island_alive");
+            sd.switchWhoosh = C("switch_whoosh"); sd.reveal = C("reveal");
+            EditorUtility.SetDirty(sd);
+
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+            Report.Add($"Sound -> SoundDirector with {clips.Count} placeholder clips (Assets/_Project/Audio)");
         }
 
         /// <summary>Hint text: lazy-follow panel drawn on top (was head-locked and flickered behind objects).</summary>

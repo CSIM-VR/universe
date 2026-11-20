@@ -8,8 +8,10 @@ namespace SpaceBetweenUs
     /// Each strong hit opens one layer and releases fragments of that layer's material.
     ///
     /// "Careful" mode (step 4, the last asteroid next to the islands):
-    ///  - a punch faster than maxSafeSpeed shatters it violently (fragments fly fast and can damage islands)
-    ///  - gentle taps (between minTapSpeed and maxSafeSpeed) open it slowly; after tapsNeeded taps the crystal drifts out safely.
+    ///  - by default (requireGentle off) any touch frees the crystal, which drifts gently to the islands. Simple.
+    ///  - with requireGentle on: a punch faster than maxSafeSpeed shatters it violently (fragments fly fast and ruin
+    ///    islands); gentle taps (between minTapSpeed and maxSafeSpeed) open it slowly, after tapsNeeded taps the crystal
+    ///    drifts out safely.
     ///
     /// Setup: a trigger collider; destroyer hands need a collider + HandVelocityTracker and the tag "DestroyerHand".
     /// Assign one visual GameObject per layer (e.g. pre-fractured meshes).
@@ -38,6 +40,8 @@ namespace SpaceBetweenUs
 
         [Header("Careful mode (last asteroid)")]
         public bool carefulMode;
+        [Tooltip("Off: one touch frees the crystal gently. On: gentle taps needed, a hard punch ruins the islands.")]
+        public bool requireGentle;
         public float minTapSpeed = 0.3f;
         public float maxSafeSpeed = 2.0f;
         public int tapsNeeded = 3;
@@ -46,11 +50,14 @@ namespace SpaceBetweenUs
         public float violentFragmentSpeed = 12f;
 
         public UnityEvent onOpened;          // all layers released
+        public UnityEvent<int> onLayerOpened = new();   // a strong hit opened layer 0 (shell) / 1 (inside) / 2 (core)
         public UnityEvent onViolentBreak;    // careful mode failed
         public UnityEvent<int> onTap;        // careful mode: number of gentle taps so far
 
         public int LayerIndex => _layer;
         public int Taps => _taps;
+        /// <summary>Careful mode: the crystal came out safely (not a violent break).</summary>
+        public bool OpenedGently { get; private set; }
 
         int _layer;        // 0 shell, 1 inside, 2 core, 3 broken
         int _taps;
@@ -80,12 +87,26 @@ namespace SpaceBetweenUs
             else return false;
 
             // a little kick in the controller that touched it
-            XRHandInput.Haptic(hand, speed > maxSafeSpeed ? 1f : 0.5f, 0.12f);
+            XRHandInput.Haptic(hand, speed > maxSafeSpeed && (!carefulMode || requireGentle) ? 1f : 0.5f, 0.12f);
             return true;
         }
 
         void HandleCareful(float speed, Vector3 dir)
         {
+            if (!requireGentle)
+            {
+                // simple version: any touch, however hard, frees the crystal and it floats down to the islands
+                if (speed < minTapSpeed) return;
+                _taps++;
+                onTap?.Invoke(_taps);
+                StartCoroutine(Wobble());
+                Release(MaterialType.Crystal, 0.3f, dir);
+                _layer = 3;
+                ShowLayer(3);
+                OpenedGently = true;
+                onOpened?.Invoke();
+                return;
+            }
             if (speed > maxSafeSpeed)
             {
                 // too much force: everything flies out fast, straight into the islands
@@ -107,6 +128,7 @@ namespace SpaceBetweenUs
                 Release(MaterialType.Crystal, 0.3f, dir);
                 _layer = 3;
                 ShowLayer(3);
+                OpenedGently = true;
                 onOpened?.Invoke();
             }
         }
@@ -114,6 +136,7 @@ namespace SpaceBetweenUs
         void OpenNextLayer(float speed, Vector3 dir)
         {
             Release(LayerMaterial(_layer), speed * fragmentSpeedPerHandSpeed, dir);
+            onLayerOpened?.Invoke(_layer);
             _layer++;
             ShowLayer(_layer);
             if (_layer >= 3) onOpened?.Invoke();

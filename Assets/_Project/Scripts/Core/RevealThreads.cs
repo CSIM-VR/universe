@@ -25,6 +25,16 @@ namespace SpaceBetweenUs
         public Gradient colour;
         public GameObject[] enableOnReveal;   // e.g. the glowing deer
 
+        [Header("Bring the asteroids into view")]
+        [Tooltip("At the reveal each asteroid's remains drift to the sky above its island, where the player can see it " +
+                 "(the step-4 asteroid is otherwise straight overhead, so its thread seems to vanish into the sky).")]
+        public bool gatherAsteroids = true;
+        [Tooltip("Distance from the player (metres, at Builder scale).")]
+        public float gatherDistance = 22f;
+        [Tooltip("Height above the horizon, in degrees.")]
+        public float gatherElevation = 26f;
+        public float gatherTime = 5f;
+
         static readonly Color Gold = new(1f, 0.82f, 0.45f), Violet = new(0.72f, 0.55f, 1f);
 
         void Reset() => colour = DefaultGradient();
@@ -45,6 +55,7 @@ namespace SpaceBetweenUs
             if (colour == null || colour.colorKeys.Length < 2) colour = DefaultGradient();
 
             int n = Mathf.Min(islands.Length, asteroids.Length);
+            if (gatherAsteroids) StartCoroutine(Gather(n));
             var lines = new LineRenderer[n];
             for (int i = 0; i < n; i++)
             {
@@ -67,6 +78,7 @@ namespace SpaceBetweenUs
             }
 
             var pts = new Vector3[segments + 1];
+            // keep drawing while the asteroids are still drifting into place
             for (float t = 0f; ; t += Time.deltaTime)
             {
                 float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / growTime));
@@ -85,7 +97,52 @@ namespace SpaceBetweenUs
                     lines[i].positionCount = count;
                     lines[i].SetPositions(pts);
                 }
-                if (t > growTime) break;
+                if (t > growTime && (!gatherAsteroids || t > gatherTime + 0.2f)) break;
+                yield return null;
+            }
+        }
+
+        /// <summary>Each asteroid glides to a spot in the sky in the direction of its island, as seen by the player.</summary>
+        IEnumerator Gather(int n)
+        {
+            var cam = Camera.main;
+            if (!cam) yield break;
+            Vector3 eye = cam.transform.position;
+            float scale = Mathf.Max(0.01f, cam.transform.lossyScale.x);
+            var from = new Vector3[n];
+            var to = new Vector3[n];
+            var spin = new Vector3[n];
+            for (int i = 0; i < n; i++)
+            {
+                if (!islands[i] || !asteroids[i]) continue;
+                asteroids[i].gameObject.SetActive(true);
+                var flat = islands[i].position - eye;
+                flat.y = 0f;
+                if (flat.sqrMagnitude < 1e-6f) flat = cam.transform.forward;
+                flat.y = 0f;
+                flat.Normalize();
+                float el = gatherElevation * Mathf.Deg2Rad;
+                from[i] = asteroids[i].position;
+                to[i] = eye + (flat * Mathf.Cos(el) + Vector3.up * Mathf.Sin(el)) * gatherDistance * scale;
+                spin[i] = Random.onUnitSphere * Random.Range(4f, 9f);
+            }
+            for (float t = 0f; ; t += Time.deltaTime)
+            {
+                float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / gatherTime));
+                for (int i = 0; i < n; i++)
+                {
+                    if (!islands[i] || !asteroids[i]) continue;
+                    asteroids[i].position = Vector3.Lerp(from[i], to[i], k);
+                    asteroids[i].Rotate(spin[i] * Time.deltaTime, Space.World);   // a slow tumble, now and forever
+                }
+                if (t > gatherTime) break;
+                yield return null;
+            }
+            // keep tumbling gently
+            while (true)
+            {
+                for (int i = 0; i < n; i++)
+                    if (asteroids[i]) asteroids[i].Rotate(spin[i] * 0.5f * Time.deltaTime, Space.World);
                 yield return null;
             }
         }

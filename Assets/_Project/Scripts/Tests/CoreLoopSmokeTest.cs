@@ -120,11 +120,11 @@ namespace SpaceBetweenUs.Tests
             Check(_flow.IslandsAlive == 2 && _flow.GoalDone, "step 3 goal done");
             yield return SwitchVia(4, Role.Destroyer);
 
-            // ---- Step 4: careful asteroid, three gentle taps
+            // ---- Step 4: the last asteroid frees its crystal (one touch, or gentle taps if requireGentle is on)
             Check(careful.gameObject.activeInHierarchy, "last asteroid appeared next to the islands");
             for (int i = 0; i < 6 && careful.LayerIndex < 3; i++)
                 yield return Thrust(careful.transform.position, gentle: true);
-            Check(careful.LayerIndex == 3 && careful.Taps == 3 && !_violent, "careful asteroid opened gently (3 taps, no violent break)");
+            Check(careful.LayerIndex == 3 && careful.OpenedGently && !_violent, $"last asteroid freed its crystal gently ({careful.Taps} tap(s), no violent break)");
             Check(_flow.GoalDone, "step 4 goal done");
             yield return SwitchVia(5, Role.Builder);
 

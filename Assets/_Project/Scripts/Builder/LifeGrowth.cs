@@ -23,6 +23,7 @@ namespace SpaceBetweenUs
         }
 
         public Stage[] stages;
+        public UnityEngine.Events.UnityEvent<string> onStage = new();   // a stage started growing (sound, effects)
 
         // authored (full) size of every grow object, so a regrow after Wither() reaches the right size
         readonly System.Collections.Generic.Dictionary<Transform, Vector3> _full = new();
@@ -63,6 +64,7 @@ namespace SpaceBetweenUs
         public void PlayStage(int index)
         {
             if (index < 0 || index >= stages.Length) return;
+            onStage?.Invoke(stages[index].name);
             StartCoroutine(Grow(stages[index]));
         }
 
