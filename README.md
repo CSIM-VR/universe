@@ -190,7 +190,7 @@ Without the simulator, the desktop controls from §8 apply.
 
 ### 9.6 Building for Quest
 
-1. **Space Between Us → Build → Prepare Quest Build** (once): package name `com.csimvr.spacebetweenus`, only `Prototype_Core` in the build.
+1. **Space Between Us → Build → Prepare Quest Build** (once): package name `com.csimvr.spacebetweenus`, only `Prototype_Core` in the build, target API 36 (Meta XR SDK needs compileSdk 35+; with target 34 Gradle fails in `checkReleaseAarMetadata`).
 2. *File → Build Profiles → **Meta Quest*** (active; Android, IL2CPP, ARM64, min API 32, OpenXR) → **Build** for an `.apk`, or **Build And Run** with the headset plugged in.
 3. Install on a Quest in developer mode: drag the `.apk` into Meta Quest Developer Hub, or `adb install -r universe.apk`. It shows under *Unknown sources* in the app library.
 
