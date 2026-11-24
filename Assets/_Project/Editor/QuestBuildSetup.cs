@@ -7,22 +7,22 @@ namespace SpaceBetweenUs.EditorTools
 {
     /// <summary>
     /// Space Between Us > Build > Prepare Quest Build: sets the Android package name, makes Prototype_Core the
-    /// only scene in the build, and raises the target API to 36 (Meta XR SDK pulls in androidx.core 1.15, which needs
-    /// compileSdk 35+, and Unity compiles against the target API; API 36 is bundled with Unity 6.6. A higher target
-    /// still installs and runs on Quest's Android 14). With an active build profile that overrides Player Settings
+    /// only scene in the build, and sets the target API to 34, the level Meta's Project Setup Tool asks for (and resets
+    /// to). androidx.core 1.15 from the Meta XR SDK needs compileSdk 35+; GradleCompileSdkFix raises only compileSdk
+    /// in the generated Gradle project, so the target can stay 34. With an active build profile that overrides Player Settings
     /// (our Meta Quest profile does) these calls write into that profile. Done through the editor API (editing ProjectSettings files while Unity is open gets
     /// overwritten by its in-memory copy).
     /// </summary>
     public static class QuestBuildSetup
     {
         public const string PackageName = "com.csimvr.spacebetweenus";
-        const int TargetApi = 36;
+        const int TargetApi = 34;
 
         [MenuItem("Space Between Us/Build/Prepare Quest Build", priority = 60)]
         static void Prepare()
         {
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, PackageName);
-            if ((int)PlayerSettings.Android.targetSdkVersion < TargetApi)
+            if ((int)PlayerSettings.Android.targetSdkVersion != TargetApi)
                 PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)TargetApi;
 
             var scenes = EditorBuildSettings.scenes.ToList();

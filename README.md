@@ -36,7 +36,7 @@ Assets/
       Builder/     attractor, island slots, island, life growth, critters, glow deer, lotus, stream
       Tests/       core-loop smoke test
     Editor/        scene builder, art swap, sky, palette, lotus generator, smoke test, sound synth,
-                   Quest build setup, shader report
+                   Quest build setup + Gradle compileSdk fix, shader report
     Shaders/       StylizedWater, FlowingWater, LightThread, GhostHand, HintText, TwinkleStar, CritterWing
                    (all URP + Quest single-pass)
     Prefabs/       Prototype/: Asteroid, Fragment_Rock/Ice/Crystal, Island
@@ -224,7 +224,7 @@ Without the simulator, the desktop controls from §8 apply.
 
 ### 9.6 Building for Quest
 
-1. **Space Between Us → Build → Prepare Quest Build** (once): package name `com.csimvr.spacebetweenus`, only `Prototype_Core` in the build, target API 36 (Meta XR SDK needs compileSdk 35+; with target 34 Gradle fails in `checkReleaseAarMetadata`).
+1. **Space Between Us → Build → Prepare Quest Build** (once): package name `com.csimvr.spacebetweenus`, only `Prototype_Core` in the build, target API 34 (what Meta's Project Setup Tool asks for). The Meta XR SDK needs compileSdk 35+, so `GradleCompileSdkFix.cs` raises only compileSdk in the generated Gradle project to the newest installed platform (36). Without it Gradle fails in `checkReleaseAarMetadata`.
 2. *File → Build Profiles → **Meta Quest*** (active; Android, IL2CPP, ARM64, min API 32, OpenXR) → **Build** for an `.apk`, or **Build And Run** with the headset plugged in.
 3. Install on a Quest in developer mode: drag the `.apk` into Meta Quest Developer Hub, or `adb install -r universe.apk`. It shows under *Unknown sources* in the app library.
 
