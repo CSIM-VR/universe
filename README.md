@@ -15,7 +15,7 @@ They look like opposites but depend on each other: one process, not two.
 
 1. Install Git. (Git LFS is **not** used: every file in the repo must stay under GitHub's 100 MB limit, see §9.4.)
 2. Clone the repo and open the folder with **Unity Hub** (same Unity version).
-3. Open `Assets/_Project/Scenes/Prototype_Core.unity` (the playable prototype, §8). `Main.unity` is the final scene.
+3. Open `Assets/_Project/Scenes/Prototype_Core.unity` (the playable prototype, §8). A hand-built `Main.unity` is planned but doesn't exist yet.
 4. If Unity asks, run **Meta XR > Project Setup Tool > Fix All**. Platform: **Android**.
 
 **Project settings (already set, don't change):**
@@ -28,15 +28,20 @@ Edit > Project Settings > Editor > Asset Serialization = *Force Text*; Version C
 ```
 Assets/
   _Project/
-    Scenes/        Main.unity, Prototype_Core.unity (generated, §8)
+    Scenes/        Prototype_Core.unity (generated, §8)
     Scripts/
-      Core/        flow, perspective switch, artifact, hand velocity, hints, light hands (HandPose), HudFollow
+      Core/        flow, perspective switch, role echo, artifact, hand velocity, hints, light hands (HandPose),
+                   HudFollow, reveal threads, shooting stars, sound director
       Destroyer/   asteroid, fragments
-      Builder/     attractor, island slots, island, life growth, lotus, stream
-    Editor/        scene builder, art swap, sky, palette, lotus generator, smoke test
-    Shaders/       StylizedWater, FlowingWater, LightThread, GhostHand, HintText (all URP + Quest single-pass)
+      Builder/     attractor, island slots, island, life growth, critters, lotus, stream
+      Tests/       core-loop smoke test
+    Editor/        scene builder, art swap, sky, palette, lotus generator, smoke test, sound synth,
+                   Quest build setup, shader report
+    Shaders/       StylizedWater, FlowingWater, LightThread, GhostHand, HintText, TwinkleStar, CritterWing
+                   (all URP + Quest single-pass)
     Prefabs/       Prototype/: Asteroid, Fragment_Rock/Ice/Crystal, Island
     Materials/     Prototype/ (generated materials), Skybox/
+    Audio/         generated placeholder sounds (.wav)
     Art/           generated meshes (Stream/)
   3D_Game_Assets_Flora/  Asteroids pack/  Floreswa/  Mid Moon Studio/  SineVFX/  Nebula Skyboxes/
                    imported asset packs (see §9.3)
@@ -46,7 +51,7 @@ Assets/
 
 ## 3. Collaboration rules
 
-- **Don't edit `Main.unity` at the same time.** Build and test your part in your own test scene, as a **prefab**. Only one person merges prefabs into `Main.unity`, and says so in the chat first.
+- **Don't edit the same scene at the same time.** Build and test your part in your own test scene, as a **prefab**. Only one person merges prefabs into the shared scene, and says so in the chat first. `Prototype_Core` is generated: change `PrototypeSceneBuilder` / `PrototypeArtSwap`, not the scene by hand.
 - One branch per feature: `feature/destroyer-punch`, `feature/life-growth`… Merge into `main` with a pull request.
 - Pull before you start, push when a piece works. Small commits.
 - No Git LFS: keep every file under 100 MB (shrink big textures first, see §9.4). Don't commit asset packs the game doesn't use: add them to `.gitignore`.
@@ -57,10 +62,10 @@ Assets/
 
 | Area | What | Main scripts |
 |---|---|---|
-| **World + switch** | XR rig, central artifact, perspective switch (scale, hands, x-ray layer), 6-step flow, fade | `PerspectiveSwitcher`, `GameFlowManager`, `CentralArtifact` |
-| **Destroyer** | Asteroid layers (shell → inside → core), punch / pull apart / throw, fragments drifting to the islands, last asteroid (step 4), x-ray shader | `Asteroid`, `MaterialFragment`, `HandVelocityTracker` |
+| **World + switch** | XR rig, central artifact, perspective switch (grow / shrink ×20 in one shared space, hands, x-ray layer), role echo, 6-step flow | `PerspectiveSwitcher`, `GameFlowManager`, `CentralArtifact` |
+| **Destroyer** | Asteroid layers (shell → inside → core), punch / pull apart / throw, fragments falling to the islands below, last asteroid (step 4), x-ray shader | `Asteroid`, `MaterialFragment`, `HandVelocityTracker` |
 | **Builder** | Attract fragments, place rock, pour ice, plant crystal, island state | `FragmentAttractor`, `IslandSlot`, `Island` |
-| **Life + art + sound** | Moss / grass spreading, lake, fish, dragonflies, lotus, fireflies, deer; skybox, sounds | `LifeGrowth` + assets |
+| **Life + art + sound** | Moss / grass spreading, lake + stream, lotus, fireflies; swimming fish, hopping frog, butterflies, dragonflies; sky, shooting stars, sounds | `LifeGrowth`, `Critters` + assets |
 
 ---
 
@@ -71,7 +76,7 @@ Assets/
 3. **Perspective switch:** touch the artifact → scale ×20, swap hands.
 4. **Full island recipe:** pour ice (lake), plant crystal (lotus), island alive.
 5. **6-step flow** with `GameFlowManager`; the last asteroid frees its crystal with one touch.
-6. **Life details:** fish, dragonflies, fireflies following the hand, deer at the end.
+6. **Life details:** swimming fish, frog, butterflies, dragonflies, fireflies (done). Ideas left: fireflies following the hand, a deer at the end.
 7. **Polish:** sounds, haptics, x-ray shader, reveal scene.
 
 ---
@@ -99,19 +104,19 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 
 **Builder hands:** `FragmentAttractor` on each hand anchor (choose `LTouch` / `RTouch`; reads the index trigger via `OVRInput`) + tag `PlayerHand`. Teleport: Meta **Teleport** building block, only onto the islands.
 
-**Switch:** `PerspectiveSwitcher` on a manager object (`xrOrigin` = the OVRCameraRig root, `xrCamera` = CenterEyeAnchor's camera, two anchors, builder-only / destroyer-only objects, fade canvas).
+**Switch:** `PerspectiveSwitcher` on a manager object (`xrOrigin` = the OVRCameraRig root, `xrCamera` = CenterEyeAnchor's camera, builder / destroyer anchors (same spot: the Destroyer grows where the Builder stands), builder-only / destroyer-only objects, fade canvas for the optional plain fade).
 `CentralArtifact` on the artifact (trigger collider), linked to `GameFlowManager`.
 
 ---
 
 ## 7. The experience in one line per step
 
-1. **Builder:** barren islands, no materials.
+1. **Builder:** barren islands, no materials. Look up: the asteroids float high above.
 2. **Destroyer:** grow up to the asteroids above the islands and break two of them; fragments fall to the islands at your feet.
-3. **Builder:** rock = ground (moss), ice = lake (plants, fish, frogs, dragonflies), crystal = lotus (trees, fireflies). Two islands come alive.
-4. **Destroyer:** the last crystal asteroid floats above the islands. Touch it once → the crystal drifts down to the islands.
+3. **Builder:** shrink back down among the islands. Rock = ground (moss), ice = lake (plants, swimming fish, a frog, dragonflies; then a stream and waterfall), crystal = lotus (trees, fireflies); butterflies come with the plants. Two islands come alive.
+4. **Destroyer:** grow again; the last crystal asteroid hangs in front of you, above the islands. Touch it once → the crystal drifts down to the islands.
    (Optional harder version: tick `requireGentle` on `Asteroid_Last_Careful`. Then it needs 3 gentle taps, and a hard punch **ruins** every island it hits: life withers, the slots are empty again and the island's rock / ice / crystal burst back out, so the Builder has to rebuild it in step 5.)
-5. **Builder:** plant the last crystal; all three islands alive; a glowing deer comes to drink.
+5. **Builder:** plant the last crystal; all three islands alive.
 6. **Reveal:** everything stands still; threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
 
 ---
@@ -141,6 +146,10 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
 | **Island Style → Rock Spire / Cliff Spire / Low-poly** | Shape of the island rock. We use **Rock Spire**. Cliff Spire needs `ValleyGrayCliff`, which is not committed. |
 | **Sky → Nebula 02** (and Apply Color Palette) | Sets the skybox and matches the ambient light to it. We use **Nebula 02**. |
 | **Reset Prototype Art** | Back to plain grey-box materials and prefabs. |
+| **Audio → Generate / Regenerate Placeholder Sounds** | Synthesises the `.wav` files in `Assets/_Project/Audio` (see Sound below). |
+| **Run Core Loop Smoke Test** | Plays all 6 steps by itself (§8). |
+| **Build → Prepare Quest Build** | Package name, scene list and target API for the Quest build (§9.6). |
+| **Debug → Report Broken Shaders** | Finds what renders magenta (§9.7). |
 
 ### 9.2 What it looks like now
 
