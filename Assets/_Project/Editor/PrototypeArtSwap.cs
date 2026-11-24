@@ -546,6 +546,25 @@ namespace SpaceBetweenUs.EditorTools
             }
             else if (!twinkle) Report.Add("TwinkleStar shader not imported yet - run again for twinkling stars");
 
+            // ---- little moving life on the islands: fish swim, frog hops, butterflies + dragonflies (Critters)
+            var critterShader = Shader.Find("SpaceBetweenUs/CritterWing");
+            if (critterShader)
+            {
+                var wing = AssetDatabase.LoadAssetAtPath<Material>($"{MatDir}/CritterWing.mat");
+                if (!wing) { wing = new Material(critterShader); AssetDatabase.CreateAsset(wing, $"{MatDir}/CritterWing.mat"); }
+                int n = 0;
+                foreach (var island in Object.FindObjectsByType<Island>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    var cr = island.GetComponent<Critters>();
+                    if (!cr) cr = island.gameObject.AddComponent<Critters>();
+                    cr.wingMaterial = wing;
+                    EditorUtility.SetDirty(cr);
+                    n++;
+                }
+                Report.Add($"Critters on {n} island(s): swimming fish, hopping frog, butterflies, dragonflies");
+            }
+            else Report.Add("CritterWing shader not imported yet - run again for butterflies / dragonflies");
+
             // ---- sound
             var clips = SoundSynth.EnsureClips(false);
             AudioClip C(string n) => clips.TryGetValue(n, out var c) ? c : null;

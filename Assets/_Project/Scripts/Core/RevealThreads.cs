@@ -25,10 +25,14 @@ namespace SpaceBetweenUs
         public Gradient colour;
         public GameObject[] enableOnReveal;   // e.g. the glowing deer
 
-        [Header("Bring the asteroids into view")]
-        [Tooltip("At the reveal each asteroid's remains drift to the sky above its island, where the player can see it " +
-                 "(the step-4 asteroid is otherwise straight overhead, so its thread seems to vanish into the sky).")]
-        public bool gatherAsteroids = true;
+        [Header("Stillness")]
+        [Tooltip("At the reveal everything stops: loose fragments freeze where they are and the asteroids stay put, " +
+                 "so only the threads of light move.")]
+        public bool freezeFragments = true;
+
+        [Header("Bring the asteroids into view (off: the world stays still)")]
+        [Tooltip("At the reveal each asteroid's remains glide to the sky above its island, where the player can see it.")]
+        public bool gatherAsteroids;
         [Tooltip("Distance from the player (metres, at Builder scale).")]
         public float gatherDistance = 22f;
         [Tooltip("Height above the horizon, in degrees.")]
@@ -55,6 +59,7 @@ namespace SpaceBetweenUs
             if (colour == null || colour.colorKeys.Length < 2) colour = DefaultGradient();
 
             int n = Mathf.Min(islands.Length, asteroids.Length);
+            if (freezeFragments) FreezeFragments();
             if (gatherAsteroids) StartCoroutine(Gather(n));
             var lines = new LineRenderer[n];
             for (int i = 0; i < n; i++)
@@ -102,6 +107,17 @@ namespace SpaceBetweenUs
             }
         }
 
+        /// <summary>Loose material fragments stop drifting and spinning: the world holds its breath for the threads.</summary>
+        static void FreezeFragments()
+        {
+            foreach (var f in FindObjectsByType<MaterialFragment>(FindObjectsSortMode.None))
+            {
+                if (!f.TryGetComponent<Rigidbody>(out var rb)) continue;
+                if (!rb.isKinematic) { rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero; }
+                rb.isKinematic = true;
+            }
+        }
+
         /// <summary>Each asteroid glides to a spot in the sky in the direction of its island, as seen by the player.</summary>
         IEnumerator Gather(int n)
         {
@@ -111,7 +127,6 @@ namespace SpaceBetweenUs
             float scale = Mathf.Max(0.01f, cam.transform.lossyScale.x);
             var from = new Vector3[n];
             var to = new Vector3[n];
-            var spin = new Vector3[n];
             for (int i = 0; i < n; i++)
             {
                 if (!islands[i] || !asteroids[i]) continue;
@@ -124,7 +139,6 @@ namespace SpaceBetweenUs
                 float el = gatherElevation * Mathf.Deg2Rad;
                 from[i] = asteroids[i].position;
                 to[i] = eye + (flat * Mathf.Cos(el) + Vector3.up * Mathf.Sin(el)) * gatherDistance * scale;
-                spin[i] = Random.onUnitSphere * Random.Range(4f, 9f);
             }
             for (float t = 0f; ; t += Time.deltaTime)
             {
@@ -133,18 +147,12 @@ namespace SpaceBetweenUs
                 {
                     if (!islands[i] || !asteroids[i]) continue;
                     asteroids[i].position = Vector3.Lerp(from[i], to[i], k);
-                    asteroids[i].Rotate(spin[i] * Time.deltaTime, Space.World);   // a slow tumble, now and forever
                 }
                 if (t > gatherTime) break;
                 yield return null;
             }
-            // keep tumbling gently
-            while (true)
-            {
-                for (int i = 0; i < n; i++)
-                    if (asteroids[i]) asteroids[i].Rotate(spin[i] * 0.5f * Time.deltaTime, Space.World);
-                yield return null;
-            }
+            for (int i = 0; i < n; i++)
+                if (islands[i] && asteroids[i]) asteroids[i].position = to[i];
         }
     }
 }

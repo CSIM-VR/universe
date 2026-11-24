@@ -107,12 +107,12 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 ## 7. The experience in one line per step
 
 1. **Builder:** barren islands, no materials.
-2. **Destroyer:** break two asteroids; fragments drift to the islands.
+2. **Destroyer:** grow up to the asteroids above the islands and break two of them; fragments fall to the islands at your feet.
 3. **Builder:** rock = ground (moss), ice = lake (plants, fish, frogs, dragonflies), crystal = lotus (trees, fireflies). Two islands come alive.
 4. **Destroyer:** the last crystal asteroid floats above the islands. Touch it once → the crystal drifts down to the islands.
    (Optional harder version: tick `requireGentle` on `Asteroid_Last_Careful`. Then it needs 3 gentle taps, and a hard punch **ruins** every island it hits: life withers, the slots are empty again and the island's rock / ice / crystal burst back out, so the Builder has to rebuild it in step 5.)
 5. **Builder:** plant the last crystal; all three islands alive; a glowing deer comes to drink.
-6. **Reveal:** the three asteroid remains drift into view above their islands, and threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
+6. **Reveal:** everything stands still; threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
 
 ---
 
@@ -148,9 +148,20 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
 - **Slot markers:** soft breathing glowing rings (gold = rock, cyan = ice, violet = crystal).
 - **Lake:** custom `StylizedWater` shader. Once the lake is full, a **stream** (`FlowingWater` + `StreamReveal`) runs across the island and spills over the edge as a waterfall into space.
 - **Life:** Flora pack grass lawn with small flowers, bushes with ferns, mushrooms and pebbles, reeds, three trees, and a lotus with pads. Fish come from Floreswa. Plants are capped at 2.5× their height in width, so flat models can't blow up.
+- **Moving life (`Critters`, on every island, added automatically):** the fish swim round the lake with a little wiggle (tick **Fish Reverse** if one swims backwards), the frog hops along the shore, butterflies (different colours per island) flutter over the island and rest now and then once the plants have grown, dragonflies hover and dart over the lake once the water life is there. All procedural, drawn with the `CritterWing` shader (no textures); *Apply Imported Art* creates `CritterWing.mat` and assigns it (without it only fish and frog move). They vanish with a ruined island and come back when it is rebuilt.
 - **Fragments:** rock (Mid Moon), ice (Asteroid_5 shape in an ice material with snowflake sparkles), crystal (SineVFX).
+- **One shared space, switch you can feel (×20):** the Destroyer is the Builder grown ×20 **on the same spot, facing the same way**. No cut, no teleport:
+  - The asteroids float high above the islands (the Builder looks UP to see them), at the giant's arm's reach.
+  - Becoming the Destroyer: your hands turn blue and you **grow in place** (3 s, ×1 → ×20 around your feet). You rise straight up past the islands, which stay at your feet as a tiny model, and arrive right at the asteroids. The fragments you knock out fall down onto the islands below you.
+  - Going back is the exact reverse: you **sink back down** from the asteroids and land among the islands.
+  - Step 4's last asteroid hangs between the two others, in front of the giant, above the islands.
+  - The hint panel shows **GROWING ×n / SHRINKING ×n** during the move.
+  - Comfort: the scale follows a log curve (steady doubling); if you moved while in one role, the rig glides back to the anchor during the same motion.
+  - Tune **Grow Time** on `PerspectiveSwitcher` (GameSystems), or untick **Grow Transition** for the old fade. Positions live in `PrototypeSceneBuilder` (`DestroyerAnchorPos`, `AsteroidLocal*`): **re-run Build Core Prototype Scene** after changing them.
+  - The Meta XR Simulator shows one eye only. On a real Quest the distance between your eyes is scaled ×20 too, so the islands really look like a miniature.
+- **Echo of your other self (`RoleEcho`, added automatically):** when you switch, a faint glowing copy of the self you leave stays behind in the pose you had. As the giant, look down: your golden Builder (head, body, hands) stands among the islands, the size of your thumb. Back as the Builder, look up: the giant's blue hands still hang by the asteroids. **Strength** sets how bright the echo is.
 - **Hands of light:** Meta hand mesh with the `GhostHand` rim-glow shader. Builder = gold; Destroyer = blue and 1.3× larger. Fingers curl with GRIP (Destroyer: GRIP or TRIGGER). If fingers bend backwards, flip **Curl Sign** on `HandPose`. Colliders and gameplay are unchanged.
-- **Step 6 threads:** soft glowing curves (`LightThread`) from each island to its asteroid. At the reveal the asteroid remains glide (5 s) to the sky in the direction of their island, about 22 m away and 26° up, and keep tumbling slowly, so every thread ends where you can see it. Tune **Gather Distance / Elevation / Time** on `Reveal` (`RevealThreads`), or untick **Gather Asteroids**.
+- **Step 6 threads:** soft glowing curves (`LightThread`) from each island to its asteroid. At the reveal **the world stands still**: loose fragments freeze where they are and the islands and asteroids don't move, only the threads grow and glow (the little creatures keep living). In the shared space the three asteroids hang in front of you above the islands, so every thread ends where you can see it by looking up. `RevealThreads` options: **Freeze Fragments** (on), **Gather Asteroids** (off; glides the asteroids closer into view instead).
 - **Hint text:** 3D `TextMesh` with the `HintText` shader (Canvas text flickered in the headset). `HudFollow` lets it float in front of you, recentre when you look away, and scale with the giant Destroyer rig. Tweak **Line Height** / **Wrap Chars** on `FlowHints` and **Dead Zone** / **Settle Angle** on `HudFollow`.
 - **Sky:** Nebula 02 cubemap; ambient light sampled from the sky. The star particles twinkle (`TwinkleStar` shader, each star has its own speed; a few flare now and then), and `ShootingStars` sends a silent, straight shooting star (a 2-point line, head bright, tail fading) every 8–15 s, within 50° of where you are looking and 15–40° above the horizon (**View Spread**, **Elevation**, **Interval**, **Tail Length** on `Stars`).
 - **Sound:** `SoundDirector` (scene object `Audio`) listens to the gameplay events itself:

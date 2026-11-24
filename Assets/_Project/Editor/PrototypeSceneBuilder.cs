@@ -22,15 +22,15 @@ namespace SpaceBetweenUs.EditorTools
         const string PrefabDir = "Assets/_Project/Prefabs/Prototype";
 
         const float DestroyerScale = 20f;
-        static readonly Vector3 DestroyerAnchorPos = new(0f, 0f, 40f);       // step 2: the asteroid field, in the sky in front of the Builder
-        // step 4: next to the islands, at the SAME height as the first Destroyer view (islands at the giant's feet,
-        // not at waist height), so the giant feels the same size both times. The last asteroid (11 m ahead) floats above the islands.
-        static readonly Vector3 DestroyerLateAnchorPos = new(0f, 0f, -10f);
+        // ONE shared space: the Destroyer is the Builder grown x20 on the same spot, facing the same way. The asteroids
+        // float high above the islands (the Builder looks UP at them); growing lifts you straight up to them, and the
+        // islands stay at the giant's feet. Fragments fall from the asteroids down onto the islands.
+        static readonly Vector3 DestroyerAnchorPos = Vector3.zero;
         static readonly Vector3 DriftTargetPos = new(0f, 1.25f, 0.45f);       // where fragments gather for the Builder
         // asteroids sit at arm's reach of the scaled-up Destroyer (rig-local position x 20)
         static readonly Vector3 AsteroidLocalLeft = new(-0.25f, 1.35f, 0.55f);
         static readonly Vector3 AsteroidLocalRight = new(0.25f, 1.35f, 0.55f);
-        static readonly Vector3 AsteroidLocalCareful = new(0f, 1.35f, 0.55f);
+        static readonly Vector3 AsteroidLocalCareful = new(0f, 1.25f, 0.45f);   // between the two, a little lower
         static readonly Vector3 LakeLocal = new(0.12f, 0f, 0.1f);
 
         // ------------------------------------------------------------------ entry points
@@ -101,9 +101,7 @@ namespace SpaceBetweenUs.EditorTools
             // anchors
             var anchors = new GameObject("Anchors").transform;
             var builderAnchor = Empty("Anchor_Builder", anchors, Vector3.zero);
-            var destroyerAnchor = Empty("Anchor_Destroyer_Asteroids", anchors, DestroyerAnchorPos);
-            destroyerAnchor.rotation = Quaternion.Euler(0f, 180f, 0f);   // the giant faces back toward the islands
-            var destroyerLateAnchor = Empty("Anchor_Destroyer_NextToIslands", anchors, DestroyerLateAnchorPos);
+            var destroyerAnchor = Empty("Anchor_Destroyer", anchors, DestroyerAnchorPos);   // same spot, same facing as the Builder
             var driftTarget = Empty("IslandsDriftTarget", anchors, DriftTargetPos);
 
             // islands
@@ -134,7 +132,7 @@ namespace SpaceBetweenUs.EditorTools
             }
             var astA = MakeAsteroid("Asteroid_1", destroyerAnchor, AsteroidLocalLeft);
             var astB = MakeAsteroid("Asteroid_2", destroyerAnchor, AsteroidLocalRight);
-            var astC = MakeAsteroid("Asteroid_Last_Careful", destroyerLateAnchor, AsteroidLocalCareful);
+            var astC = MakeAsteroid("Asteroid_Last_Careful", destroyerAnchor, AsteroidLocalCareful);
             astC.carefulMode = true;
             astC.violentTargets = System.Array.ConvertAll(islands, x => x.transform);
             astC.gameObject.SetActive(false);   // appears in step 4
@@ -188,12 +186,13 @@ namespace SpaceBetweenUs.EditorTools
             // soft flowing threads + halos once Apply Imported Art has created them, else the plain prototype line
             reveal.threadMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{MatDir}/LightThread_Soft.mat") ?? m.thread;
             reveal.enableOnReveal = new GameObject[0];
+            reveal.gatherAsteroids = false;   // the world stays still at the reveal: only the threads move
+            reveal.freezeFragments = true;
 
             // event wiring
             flow.onStepStarted = new UnityEvent[7];
             for (int i = 0; i < flow.onStepStarted.Length; i++) flow.onStepStarted[i] = new UnityEvent();
             UnityEventTools.AddBoolPersistentListener(flow.onStepStarted[4], astC.gameObject.SetActive, true);
-            UnityEventTools.AddObjectPersistentListener(flow.onStepStarted[4], switcher.SetDestroyerAnchor, destroyerLateAnchor);
             flow.onReveal = new UnityEvent();
             UnityEventTools.AddPersistentListener(flow.onReveal, reveal.Play);
 

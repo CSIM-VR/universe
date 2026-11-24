@@ -145,7 +145,7 @@ namespace SpaceBetweenUs.Tests
         {
             yield return new WaitForSeconds(0.3f);
             _sim.TouchArtifact();
-            yield return WaitUntil(() => _flow.Step == expectedStep && !_switcher.IsSwitching && _switcher.Current == expectedRole, 6f);
+            yield return WaitUntil(() => _flow.Step == expectedStep && !_switcher.IsSwitching && _switcher.Current == expectedRole, 12f);
             bool ok = _flow.Step == expectedStep && _switcher.Current == expectedRole;
             Check(ok, $"artifact switch -> step {expectedStep} as {expectedRole}" +
                       (ok ? "" : $" (now step {_flow.Step} as {_switcher.Current}, goal done: {_flow.GoalDone})"));
@@ -154,7 +154,7 @@ namespace SpaceBetweenUs.Tests
                 // later steps depend on this one: force the switch so the rest of the loop still gets tested
                 Debug.LogWarning("[SmokeTest] forcing the switch to keep testing");
                 _flow.RequestSwitch();
-                yield return WaitUntil(() => !_switcher.IsSwitching && _flow.Step == expectedStep, 6f);
+                yield return WaitUntil(() => !_switcher.IsSwitching && _flow.Step == expectedStep, 12f);
             }
             yield return new WaitForSeconds(0.3f);
         }
