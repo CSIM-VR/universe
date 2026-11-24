@@ -39,7 +39,9 @@ namespace SpaceBetweenUs
         class Fish { public Transform t; public Quaternion rot0; public float a0, a, r, y, speed, phase; }
         readonly List<Fish> _fish = new();
         Vector3 _lake;            // lake centre in the fish's parent space
-        Transform _frog;
+        Transform _frog, _throat;
+        Vector3 _throatScale;
+        Quaternion _frogRot0, _frogRot1;
         Vector3 _frogBase, _frogScale, _frogFrom, _frogTo;
         float _frogNext, _frogT0 = -1f;
 
@@ -84,6 +86,8 @@ namespace SpaceBetweenUs
             else _lake = new Vector3(0.12f, 0f, 0.1f);
             if (_frog)
             {
+                foreach (var c in _frog.GetComponentsInChildren<Transform>(true))
+                    if (c.name == "Throat") { _throat = c; _throatScale = c.localScale; break; }
                 _frogBase = _frog.localPosition;
                 _frogNext = Time.time + Random.Range(2f, 5f);
             }
@@ -139,9 +143,23 @@ namespace SpaceBetweenUs
                 float r = Mathf.Clamp(new Vector2(d.x, d.z).magnitude, 0.1f, 0.16f);
                 _frogTo = new Vector3(_lake.x + Mathf.Cos(a) * r, _frogBase.y, _lake.z + Mathf.Sin(a) * r);
                 _frogT0 = t;
+                // turn to face the jump (the frog art looks along +z)
+                _frogRot0 = _frog.localRotation;
+                var hopDir = _frogTo - _frogFrom; hopDir.y = 0f;
+                _frogRot1 = hopDir.sqrMagnitude > 1e-8f ? Quaternion.LookRotation(hopDir) : _frogRot0;
             }
-            if (_frogT0 < 0f) return;
+            if (_frogT0 < 0f)
+            {
+                // sitting: the throat puffs in and out
+                if (_throat)
+                {
+                    float b = 1f + 0.35f * Mathf.Max(0f, Mathf.Sin(t * 5f)) * Mathf.Max(0f, Mathf.Sin(t * 0.8f));
+                    _throat.localScale = new Vector3(_throatScale.x * b, _throatScale.y * b, _throatScale.z * b);
+                }
+                return;
+            }
             const float hop = 0.4f;
+            _frog.localRotation = Quaternion.Slerp(_frogRot0, _frogRot1, Mathf.Clamp01((t - _frogT0) / (hop * 0.4f)));
             float k = (t - _frogT0) / hop;
             if (k >= 1f)
             {

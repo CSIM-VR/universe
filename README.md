@@ -33,7 +33,7 @@ Assets/
       Core/        flow, perspective switch, role echo, artifact, hand velocity, hints, light hands (HandPose),
                    HudFollow, reveal threads, shooting stars, sound director
       Destroyer/   asteroid, fragments
-      Builder/     attractor, island slots, island, life growth, critters, lotus, stream
+      Builder/     attractor, island slots, island, life growth, critters, glow deer, lotus, stream
       Tests/       core-loop smoke test
     Editor/        scene builder, art swap, sky, palette, lotus generator, smoke test, sound synth,
                    Quest build setup, shader report
@@ -65,7 +65,7 @@ Assets/
 | **World + switch** | XR rig, central artifact, perspective switch (grow / shrink ×20 in one shared space, hands, x-ray layer), role echo, 6-step flow | `PerspectiveSwitcher`, `GameFlowManager`, `CentralArtifact` |
 | **Destroyer** | Asteroid layers (shell → inside → core), punch / pull apart / throw, fragments falling to the islands below, last asteroid (step 4), x-ray shader | `Asteroid`, `MaterialFragment`, `HandVelocityTracker` |
 | **Builder** | Attract fragments, place rock, pour ice, plant crystal, island state | `FragmentAttractor`, `IslandSlot`, `Island` |
-| **Life + art + sound** | Moss / grass spreading, lake + stream, lotus, fireflies; swimming fish, hopping frog, butterflies, dragonflies; sky, shooting stars, sounds | `LifeGrowth`, `Critters` + assets |
+| **Life + art + sound** | Moss / grass spreading, lake + stream, lotus, fireflies; swimming fish, hopping frog, butterflies, dragonflies, deer of light; sky, shooting stars, sounds | `LifeGrowth`, `Critters` + assets |
 
 ---
 
@@ -76,7 +76,7 @@ Assets/
 3. **Perspective switch:** touch the artifact → scale ×20, swap hands.
 4. **Full island recipe:** pour ice (lake), plant crystal (lotus), island alive.
 5. **6-step flow** with `GameFlowManager`; the last asteroid frees its crystal with one touch.
-6. **Life details:** swimming fish, frog, butterflies, dragonflies, fireflies (done). Ideas left: fireflies following the hand, a deer at the end.
+6. **Life details:** swimming fish, frog, butterflies, dragonflies, fireflies, glowing deer (done). Idea left: fireflies following the hand.
 7. **Polish:** sounds, haptics, x-ray shader, reveal scene.
 
 ---
@@ -116,7 +116,7 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 3. **Builder:** shrink back down among the islands. Rock = ground (moss), ice = lake (plants, swimming fish, a frog, dragonflies; then a stream and waterfall), crystal = lotus (trees, fireflies); butterflies come with the plants. Two islands come alive.
 4. **Destroyer:** grow again; the last crystal asteroid hangs in front of you, above the islands. Touch it once → the crystal drifts down to the islands.
    (Optional harder version: tick `requireGentle` on `Asteroid_Last_Careful`. Then it needs 3 gentle taps, and a hard punch **ruins** every island it hits: life withers, the slots are empty again and the island's rock / ice / crystal burst back out, so the Builder has to rebuild it in step 5.)
-5. **Builder:** plant the last crystal; all three islands alive.
+5. **Builder:** plant the last crystal; all three islands alive, and a deer made of light appears and leaps between the islands, grazing and drinking.
 6. **Reveal:** everything stands still; threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
 
 ---
@@ -153,12 +153,8 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
 
 ### 9.2 What it looks like now
 
-- **Islands:** floating rock with a jagged inverted-cone underside, all in one stone material (Asteroids pack). Each island picks one of 3 variants from the number in its name (`ArtVariant`).
-- **Slot markers:** soft breathing glowing rings (gold = rock, cyan = ice, violet = crystal).
-- **Lake:** custom `StylizedWater` shader. Once the lake is full, a **stream** (`FlowingWater` + `StreamReveal`) runs across the island and spills over the edge as a waterfall into space.
-- **Life:** Flora pack grass lawn with small flowers, bushes with ferns, mushrooms and pebbles, reeds, three trees, and a lotus with pads. Fish come from Floreswa. Plants are capped at 2.5× their height in width, so flat models can't blow up.
-- **Moving life (`Critters`, on every island, added automatically):** the fish swim round the lake with a little wiggle (tick **Fish Reverse** if one swims backwards), the frog hops along the shore, butterflies (different colours per island) flutter over the island and rest now and then once the plants have grown, dragonflies hover and dart over the lake once the water life is there. All procedural, drawn with the `CritterWing` shader (no textures); *Apply Imported Art* creates `CritterWing.mat` and assigns it (without it only fish and frog move). They vanish with a ruined island and come back when it is rebuilt.
-- **Fragments:** rock (Mid Moon), ice (Asteroid_5 shape in an ice material with snowflake sparkles), crystal (SineVFX).
+**World and switch**
+
 - **One shared space, switch you can feel (×20):** the Destroyer is the Builder grown ×20 **on the same spot, facing the same way**. No cut, no teleport:
   - The asteroids float high above the islands (the Builder looks UP to see them), at the giant's arm's reach.
   - Becoming the Destroyer: your hands turn blue and you **grow in place** (3 s, ×1 → ×20 around your feet). You rise straight up past the islands, which stay at your feet as a tiny model, and arrive right at the asteroids. The fragments you knock out fall down onto the islands below you.
@@ -170,9 +166,25 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
   - The Meta XR Simulator shows one eye only. On a real Quest the distance between your eyes is scaled ×20 too, so the islands really look like a miniature.
 - **Echo of your other self (`RoleEcho`, added automatically):** when you switch, a faint glowing copy of the self you leave stays behind in the pose you had. As the giant, look down: your golden Builder (head, body, hands) stands among the islands, the size of your thumb. Back as the Builder, look up: the giant's blue hands still hang by the asteroids. **Strength** sets how bright the echo is.
 - **Hands of light:** Meta hand mesh with the `GhostHand` rim-glow shader. Builder = gold; Destroyer = blue and 1.3× larger. Fingers curl with GRIP (Destroyer: GRIP or TRIGGER). If fingers bend backwards, flip **Curl Sign** on `HandPose`. Colliders and gameplay are unchanged.
-- **Step 6 threads:** soft glowing curves (`LightThread`) from each island to its asteroid. At the reveal **the world stands still**: loose fragments freeze where they are and the islands and asteroids don't move, only the threads grow and glow (the little creatures keep living). In the shared space the three asteroids hang in front of you above the islands, so every thread ends where you can see it by looking up. `RevealThreads` options: **Freeze Fragments** (on), **Gather Asteroids** (off; glides the asteroids closer into view instead).
-- **Hint text:** 3D `TextMesh` with the `HintText` shader (Canvas text flickered in the headset). `HudFollow` lets it float in front of you, recentre when you look away, and scale with the giant Destroyer rig. Tweak **Line Height** / **Wrap Chars** on `FlowHints` and **Dead Zone** / **Settle Angle** on `HudFollow`.
+
+**Islands and life**
+
+- **Islands:** floating rock with a jagged inverted-cone underside, all in one stone material (Asteroids pack). Each island picks one of 3 variants from the number in its name (`ArtVariant`).
+- **Slot markers:** soft breathing glowing rings (gold = rock, cyan = ice, violet = crystal).
+- **Lake:** custom `StylizedWater` shader. Once the lake is full, a **stream** (`FlowingWater` + `StreamReveal`) runs across the island and spills over the edge as a waterfall into space.
+- **Life:** Flora pack grass lawn with small flowers, bushes with ferns, mushrooms and pebbles, reeds, three trees, and a lotus with pads. Fish come from Floreswa. Plants are capped at 2.5× their height in width, so flat models can't blow up.
+- **Moving life (`Critters`, on every island, added automatically):** the fish swim round the lake with a little wiggle (tick **Fish Reverse** if one swims backwards), the frog (built from shapes by *Apply Imported Art*: spotted green body, bulging eyes, pale throat that puffs while it sits, folded legs; ~3.5 cm) turns and hops along the shore, butterflies (different colours per island) flutter over the island and rest now and then once the plants have grown, dragonflies hover and dart over the lake once the water life is there. All procedural, drawn with the `CritterWing` shader (no textures); *Apply Imported Art* creates `CritterWing.mat` and assigns it (without it only fish and frog move). They vanish with a ruined island and come back when it is rebuilt.
+- **Deer of light (`GlowDeer`, added automatically):** once all three islands are alive, a deer built from simple shapes and drawn with the glowing `GhostHand` shader (strong inner fill, soft gold, gold motes drifting off it) fades in on `Island_3`. It then lives between the islands: on each one it grazes the lawn, drinks at the lake, looks up at you, trots to the edge and **leaps across the gap** to a neighbouring island. Ears flick, the tail swishes. If an island is ruined it fades away and returns when all live again. About 11 cm tall (back) at the default **Size** 2.4. Options: **Start Island**, **Colour**, **Inner Fill**, **Motes**, **Size**, **Walk Speed**, **Leap Height / Time**, **Wait For All Islands**.
+- **Fragments:** rock (Mid Moon), ice (Asteroid_5 shape in an ice material with snowflake sparkles), crystal (SineVFX).
+
+**Sky and the reveal**
+
 - **Sky:** Nebula 02 cubemap; ambient light sampled from the sky. The star particles twinkle (`TwinkleStar` shader, each star has its own speed; a few flare now and then), and `ShootingStars` sends a silent, straight shooting star (a 2-point line, head bright, tail fading) every 8–15 s, within 50° of where you are looking and 15–40° above the horizon (**View Spread**, **Elevation**, **Interval**, **Tail Length** on `Stars`).
+- **Step 6 threads:** soft glowing curves (`LightThread`) from each island to its asteroid. At the reveal **the world stands still**: loose fragments freeze where they are and the islands and asteroids don't move, only the threads grow and glow (the little creatures keep living). In the shared space the three asteroids hang in front of you above the islands, so every thread ends where you can see it by looking up. `RevealThreads` options: **Freeze Fragments** (on), **Gather Asteroids** (off; glides the asteroids closer into view instead).
+
+**Hints and sound**
+
+- **Hint text:** 3D `TextMesh` with the `HintText` shader (Canvas text flickered in the headset). `HudFollow` lets it float in front of you, recentre when you look away, and scale with the giant Destroyer rig. Tweak **Line Height** / **Wrap Chars** on `FlowHints` and **Dead Zone** / **Settle Angle** on `HudFollow`.
 - **Sound:** `SoundDirector` (scene object `Audio`) listens to the gameplay events itself:
   - ambience per role, cross-faded on the switch: calm deep-space drones (48 s seamless loop; open chord with no third, slowly beating voices, a low "solar wind", rare far-away glimmers with echoes). Builder = D, a little warmer; Destroyer = A, lower and darker;
   - switch whoosh;
@@ -181,6 +193,8 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
   - reveal chord. Shooting stars are silent on purpose.
 
   The clips are **placeholders synthesised in code** (*Space Between Us → Audio → Generate Placeholder Sounds*) in `Assets/_Project/Audio`. Replace any `.wav` with a real sound of the same name: generation never overwrites an existing file (except *Regenerate All*), unless a recipe's version was bumped in `SoundSynth.Versions` (currently the two ambiences, v2), which rebuilds only those generated files.
+
+**Added in Play mode, not visible in the scene before:** `Critters` (every island), `GlowDeer` and `RoleEcho` add themselves when the scene starts (`RuntimeInitializeOnLoadMethod`), so they work without rebuilding the scene. To tune their options, change them in Play mode to try, then copy the values into the script defaults (or add the component to the scene yourself: an existing one is never duplicated).
 
 ### 9.3 Asset packs
 
@@ -222,3 +236,10 @@ Run **Space Between Us → Debug → Report Broken Shaders**. It writes `Logs/Sh
 - **`FallbackLoading` replacement pass error** in Play → async shader compilation's placeholder doesn't support XR single-pass stereo. *Project Settings → Editor → Shader Compilation* → untick **Asynchronous Shader Compilation** (now off in the project). The first Play stalls while the XR variants compile.
 - **A shader listed as BAD** → its compile errors are printed underneath.
 
+### 9.8 Still to check on a real Quest
+
+- Frame rate with everything alive: three islands of plants, fish, frogs, butterflies, dragonflies, the deer and its motes.
+- Comfort of growing / shrinking ×20 in place (3 s). If it feels too strong, raise **Grow Time** or untick **Grow Transition**.
+- How big the ×20 change feels with real stereo (the simulator shows one eye only).
+- Hand finger curl direction (`HandPose` **Curl Sign**) and hint text readability in the headset.
+- Sound levels on the headset speakers.
