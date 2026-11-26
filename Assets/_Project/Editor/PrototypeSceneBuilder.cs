@@ -27,10 +27,14 @@ namespace SpaceBetweenUs.EditorTools
         // islands stay at the giant's feet. Fragments fall from the asteroids down onto the islands.
         static readonly Vector3 DestroyerAnchorPos = Vector3.zero;
         static readonly Vector3 DriftTargetPos = new(0f, 1.25f, 0.45f);       // where fragments gather for the Builder
+        /// <summary>Size of the islands (and everything living on them). 1 = the original table-top size.</summary>
+        const float IslandScale = 2f;
+        /// <summary>Distance from the Builder to each island centre (grows with the islands so they don't overlap).</summary>
+        const float IslandRing = 0.8f * IslandScale;
         // asteroids sit at arm's reach of the scaled-up Destroyer (rig-local position x 20)
         static readonly Vector3 AsteroidLocalLeft = new(-0.25f, 1.35f, 0.55f);
         static readonly Vector3 AsteroidLocalRight = new(0.25f, 1.35f, 0.55f);
-        static readonly Vector3 AsteroidLocalCareful = new(0f, 1.25f, 0.45f);   // between the two, a little lower
+        static readonly Vector3 AsteroidLocalMiddle = new(0f, 1.25f, 0.45f);    // between the two, a little lower
         static readonly Vector3 LakeLocal = new(0.12f, 0f, 0.1f);
 
         // ------------------------------------------------------------------ entry points
@@ -113,8 +117,9 @@ namespace SpaceBetweenUs.EditorTools
                 var go = (GameObject)PrefabUtility.InstantiatePrefab(islandPrefab, islandsRoot);
                 go.name = $"Island_{i + 1}";
                 float a = angles[i] * Mathf.Deg2Rad;
-                go.transform.SetPositionAndRotation(new Vector3(Mathf.Sin(a) * 0.8f, 0.95f, Mathf.Cos(a) * 0.8f),
+                go.transform.SetPositionAndRotation(new Vector3(Mathf.Sin(a) * IslandRing, 0.95f, Mathf.Cos(a) * IslandRing),
                     Quaternion.Euler(0f, angles[i] + 180f, 0f));
+                go.transform.localScale = Vector3.one * IslandScale;
                 islands[i] = go.GetComponent<Island>();
             }
 
@@ -128,14 +133,13 @@ namespace SpaceBetweenUs.EditorTools
                 go.transform.rotation = Random.rotation;
                 var ast = go.GetComponent<Asteroid>();
                 ast.islandsDriftTarget = driftTarget;
+                ast.fragmentsPerLayer = 1;   // exactly one rock, one ice, one crystal: one island's worth
+                ast.carefulMode = false;
                 return ast;
             }
             var astA = MakeAsteroid("Asteroid_1", destroyerAnchor, AsteroidLocalLeft);
             var astB = MakeAsteroid("Asteroid_2", destroyerAnchor, AsteroidLocalRight);
-            var astC = MakeAsteroid("Asteroid_Last_Careful", destroyerAnchor, AsteroidLocalCareful);
-            astC.carefulMode = true;
-            astC.violentTargets = System.Array.ConvertAll(islands, x => x.transform);
-            astC.gameObject.SetActive(false);   // appears in step 4
+            var astC = MakeAsteroid("Asteroid_3", destroyerAnchor, AsteroidLocalMiddle);
 
             // XR rig
             var rig = MakeRig(out var head, out var leftAnchor, out var rightAnchor, out var cam);
@@ -168,18 +172,21 @@ namespace SpaceBetweenUs.EditorTools
             var switcher = systems.AddComponent<PerspectiveSwitcher>();
             artifact.flow = flow;
             systems.AddComponent<SwitchButton>().flow = flow;
+            systems.AddComponent<FragmentKeeper>();
             flow.switcher = switcher;
-            flow.normalAsteroids = 2;
+            flow.asteroidsToOpen = 3;
+            flow.islandsToBuild = 3;
             switcher.xrOrigin = rig.transform;
             switcher.xrCamera = cam;
             switcher.builderAnchor = builderAnchor;
             switcher.destroyerAnchor = destroyerAnchor;
             switcher.destroyerScale = DestroyerScale;
+            switcher.startRole = Role.Destroyer;   // the game starts as the giant
             switcher.builderOnly = new[] { builderL, builderR };
             switcher.destroyerOnly = new[] { destroyerL, destroyerR };
             switcher.fadeOverlay = MakeFade(cam);
 
-            // reveal (step 6)
+            // reveal (step 3, right after the third island comes alive)
             var reveal = new GameObject("Reveal").AddComponent<RevealThreads>();
             reveal.islands = System.Array.ConvertAll(islands, x => x.transform);
             reveal.asteroids = new[] { astA.transform, astB.transform, astC.transform };
@@ -190,9 +197,8 @@ namespace SpaceBetweenUs.EditorTools
             reveal.freezeFragments = true;
 
             // event wiring
-            flow.onStepStarted = new UnityEvent[7];
+            flow.onStepStarted = new UnityEvent[GameFlowManager.RevealStep + 1];
             for (int i = 0; i < flow.onStepStarted.Length; i++) flow.onStepStarted[i] = new UnityEvent();
-            UnityEventTools.AddBoolPersistentListener(flow.onStepStarted[4], astC.gameObject.SetActive, true);
             flow.onReveal = new UnityEvent();
             UnityEventTools.AddPersistentListener(flow.onReveal, reveal.Play);
 
@@ -206,7 +212,7 @@ namespace SpaceBetweenUs.EditorTools
             foreach (var island in islands)
             {
                 UnityEventTools.AddPersistentListener(island.onAlive, flow.IslandAlive);
-                // ruined by the violent break -> its materials burst back out, the Builder rebuilds it
+                // a fragment thrown hard at a built island ruins it: its materials burst back out, it is rebuilt
                 island.onLost = new UnityEvent();
                 UnityEventTools.AddPersistentListener(island.onLost, flow.IslandLost);
                 island.rockPrefab = astA.rockPrefab;
@@ -514,7 +520,7 @@ namespace SpaceBetweenUs.EditorTools
                 plantList.Add(b);
             }
 
-            // WaterLife: fish + frog
+            // WaterLife: fish
             var waterLife = new System.Collections.Generic.List<Transform>();
             for (int i = 0; i < 3; i++)
             {
@@ -524,7 +530,6 @@ namespace SpaceBetweenUs.EditorTools
                 fish.transform.localRotation = Quaternion.Euler(90f, a * Mathf.Rad2Deg, 0f);
                 waterLife.Add(fish.transform);
             }
-            waterLife.Add(Prim(PrimitiveType.Sphere, "Frog", stages, LakeLocal + new Vector3(-0.12f, 0.015f, -0.06f), new Vector3(0.025f, 0.018f, 0.025f), m.moss).transform);
 
             // Lotus: flower in the lake + a tree + fireflies
             var pad = Prim(PrimitiveType.Cylinder, "LotusPad", stages, LakeLocal + new Vector3(0f, 0.024f, 0f), new Vector3(0.07f, 0.002f, 0.07f), m.moss).transform;

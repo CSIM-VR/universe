@@ -47,16 +47,20 @@ namespace SpaceBetweenUs
         [Tooltip("Seconds to grow from 1x to the Destroyer scale (and to shrink back).")]
         public float growTime = 3f;
 
+        [Tooltip("The role the game starts in (the flow starts as the Destroyer).")]
+        public Role startRole = Role.Destroyer;
+
         public UnityEvent<Role> onSwitched;
         /// <summary>Raised at the very start of a switch, while the role you are leaving is still fully shown.</summary>
         public event System.Action<Role> BeforeSwitch;
         public Role Current { get; private set; } = Role.Builder;
         public bool IsSwitching { get; private set; }
 
-        /// <summary>Move where the Destroyer appears (step 4: next to the islands). Takes effect on the next switch.</summary>
+        /// <summary>Move where the Destroyer appears (e.g. next to the islands). Takes effect on the next switch.</summary>
         public void SetDestroyerAnchor(Transform anchor) => destroyerAnchor = anchor;
 
-        void Start() => Apply(Role.Builder);
+        void Awake() => Current = startRole;
+        void Start() => Apply(startRole);
 
         public void Switch()
         {

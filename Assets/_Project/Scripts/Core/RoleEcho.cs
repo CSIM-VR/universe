@@ -7,7 +7,7 @@ namespace SpaceBetweenUs
     /// Size cue: when you switch, a glowing "echo" of the self you leave stays behind, frozen in the pose you had.
     ///  - Grow into the Destroyer and look down: your golden Builder echo (head, body, hands) stands tiny among the
     ///    islands, about the size of your giant thumb.
-    ///  - Shrink back into the Builder and look up: the Destroyer's huge blue hands still hang by the asteroids.
+    ///  - Shrink back into the Builder and look up: the Destroyer's huge blue hands (hands only) still hang by the asteroids.
     /// Each echo is only shown while you are the other role. Added at runtime next to the PerspectiveSwitcher;
     /// uses the hands' own glow materials, so it needs no setup.
     /// </summary>
@@ -21,7 +21,7 @@ namespace SpaceBetweenUs
         readonly Dictionary<Role, GameObject> _echo = new();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void AddToScene()
+        internal static void AddToScene()
         {
             var sw = FindAnyObjectByType<PerspectiveSwitcher>();
             if (sw && !FindAnyObjectByType<RoleEcho>()) sw.gameObject.AddComponent<RoleEcho>();   // finds the switcher itself
@@ -93,9 +93,10 @@ namespace SpaceBetweenUs
                 float s = switcher.xrOrigin ? switcher.xrOrigin.lossyScale.x : 1f;
                 var headPos = cam.position;
                 var yaw = Quaternion.Euler(0f, cam.eulerAngles.y, 0f);
-                Body(root.transform, PrimitiveType.Sphere, headPos, yaw, Vector3.one * 0.2f * s, glow);
+                // Builder only: the giant's head would be a big blue ball hanging in the sky
                 if (role == Role.Builder && builderBody)
                 {
+                    Body(root.transform, PrimitiveType.Sphere, headPos, yaw, Vector3.one * 0.2f * s, glow);
                     float feet = switcher.xrOrigin ? switcher.xrOrigin.position.y : headPos.y - 1.6f * s;
                     float h = Mathf.Max(0.5f * s, headPos.y - 0.15f * s - feet);
                     Body(root.transform, PrimitiveType.Capsule, new Vector3(headPos.x, feet + h * 0.5f, headPos.z) - yaw * Vector3.forward * 0.05f * s,

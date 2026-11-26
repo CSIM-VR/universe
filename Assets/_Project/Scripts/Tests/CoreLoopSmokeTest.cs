@@ -5,7 +5,7 @@ using UnityEngine;
 namespace SpaceBetweenUs.Tests
 {
     /// <summary>
-    /// Automated playthrough of the whole 6-step loop in Prototype_Core, driven through the DesktopRigSimulator
+    /// Automated playthrough of the whole 3-step loop in Prototype_Core, driven through the DesktopRigSimulator
     /// (so it exercises real triggers, physics, grabbing, pouring and the flow).
     /// Started from the Editor menu "Space Between Us/Run Core Loop Smoke Test" (or batch mode).
     /// </summary>
@@ -19,7 +19,6 @@ namespace SpaceBetweenUs.Tests
         DesktopRigSimulator _sim;
         Transform _driftTarget;
         int _failures;
-        bool _violent;
 
 #if UNITY_EDITOR
         const string RunKey = "SBU_SmokeTest_Run";
@@ -76,37 +75,38 @@ namespace SpaceBetweenUs.Tests
             _sim = FindAnyObjectByType<DesktopRigSimulator>();
             _driftTarget = GameObject.Find("IslandsDriftTarget")?.transform;
             var islands = FindObjectsByType<Island>(FindObjectsSortMode.None).OrderBy(i => i.name).ToArray();
-            var allAsteroids = FindObjectsByType<Asteroid>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            var normal = allAsteroids.Where(a => !a.carefulMode).OrderBy(a => a.name).ToArray();
-            var careful = allAsteroids.FirstOrDefault(a => a.carefulMode);
+            var asteroids = FindObjectsByType<Asteroid>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .OrderBy(a => a.name).ToArray();
 
-            if (!_flow || !_switcher || !_sim || !_driftTarget || islands.Length != 3 || normal.Length != 2 || !careful)
+            if (!_flow || !_switcher || !_sim || !_driftTarget || islands.Length != 3 || asteroids.Length != 3)
             {
-                Check(false, "scene is wired (flow, switcher, simulator, 3 islands, 2+1 asteroids)");
+                Check(false, "scene is wired (flow, switcher, simulator, 3 islands, 3 asteroids)");
                 yield break;
             }
             Check(_sim.Active, "desktop simulator active (no headset)");
-            careful.onViolentBreak.AddListener(() => _violent = true);
 
             yield return new WaitForSeconds(0.5f);
 
-            // ---- Step 1 -> 2
-            Check(_flow.Step == 1 && _switcher.Current == Role.Builder, "step 1 starts as Builder");
-            yield return SwitchVia(2, Role.Destroyer);
-
-            // ---- Step 2: punch both asteroids open
-            foreach (var ast in normal)
+            // ---- Step 1: start as the Destroyer, punch all three asteroids open
+            Check(_flow.Step == 1 && _switcher.Current == Role.Destroyer, "step 1 starts as Destroyer");
+            Check(asteroids.All(a => a.gameObject.activeInHierarchy && !a.carefulMode), "all three asteroids there from the start");
+            foreach (var ast in asteroids)
             {
                 for (int i = 0; i < 6 && ast.LayerIndex < 3; i++)
                     yield return Thrust(ast.transform.position, gentle: false);
                 Check(ast.LayerIndex == 3, $"{ast.name} opened (shell > ice > crystal)");
             }
-            Check(_flow.AsteroidsOpened == 2 && _flow.GoalDone, "step 2 goal done");
-            yield return SwitchVia(3, Role.Builder);
+            Check(_flow.AsteroidsOpened == 3 && _flow.GoalDone, "step 1 goal done");
+            foreach (MaterialType t in System.Enum.GetValues(typeof(MaterialType)))
+            {
+                int n = FindObjectsByType<MaterialFragment>(FindObjectsSortMode.None).Count(f => f.type == t);
+                Check(n == 3, $"exactly 3 {t} fragments ({n})");
+            }
+            yield return SwitchVia(2, Role.Builder);
 
-            // ---- Step 3: fragments arrive, build two islands (+ ground & lake on the third)
-            yield return WaitUntil(() => FreeFragments().Count(f => Near(f, 1f)) >= 12, 40f);
-            Check(FreeFragments().Count(f => Near(f, 1f)) >= 12, $"fragments drifted to the islands ({FreeFragments().Count(f => Near(f, 1f))}/14)");
+            // ---- Step 2: fragments arrive, build all three islands
+            yield return WaitUntil(() => FreeFragments().Count(f => Near(f, 1f)) >= 9, 40f);
+            Check(FreeFragments().Count(f => Near(f, 1f)) >= 9, $"fragments drifted to the islands ({FreeFragments().Count(f => Near(f, 1f))}/9)");
 
             yield return TestAttract();
 
@@ -114,27 +114,13 @@ namespace SpaceBetweenUs.Tests
             {
                 yield return Deliver(islands[i].groundSlot, MaterialType.Rock);
                 yield return Deliver(islands[i].waterSlot, MaterialType.Ice);
-                if (i < 2) yield return Deliver(islands[i].lifeSlot, MaterialType.Crystal);
+                yield return Deliver(islands[i].lifeSlot, MaterialType.Crystal);
             }
-            Check(islands[0].IsAlive && islands[1].IsAlive, "islands 1 and 2 alive");
-            Check(_flow.IslandsAlive == 2 && _flow.GoalDone, "step 3 goal done");
-            yield return SwitchVia(4, Role.Destroyer);
+            Check(islands.All(i => i.IsAlive), "all three islands alive");
+            Check(FindObjectsByType<MaterialFragment>(FindObjectsSortMode.None).Length == 0, "no materials left over");
 
-            // ---- Step 4: the last asteroid frees its crystal (one touch, or gentle taps if requireGentle is on)
-            Check(careful.gameObject.activeInHierarchy, "last asteroid appeared next to the islands");
-            for (int i = 0; i < 6 && careful.LayerIndex < 3; i++)
-                yield return Thrust(careful.transform.position, gentle: true);
-            Check(careful.LayerIndex == 3 && careful.OpenedGently && !_violent, $"last asteroid freed its crystal gently ({careful.Taps} tap(s), no violent break)");
-            Check(_flow.GoalDone, "step 4 goal done");
-            yield return SwitchVia(5, Role.Builder);
-
-            // ---- Step 5: plant the last crystal
-            yield return WaitUntil(() => FreeFragments().Any(f => f.type == MaterialType.Crystal && Near(f, 1f)), 30f);
-            yield return Deliver(islands[2].lifeSlot, MaterialType.Crystal);
-            Check(islands[2].IsAlive, "island 3 alive");
-
-            // ---- Step 6: reveal
-            Check(_flow.Step == 6, "step 6 reveal reached");
+            // ---- Step 3: reveal, straight away
+            Check(_flow.Step == GameFlowManager.RevealStep, "step 3 reveal reached");
             yield return new WaitForSeconds(1f);
             Check(GameObject.Find("Thread_0") != null, "light threads drawn");
         }

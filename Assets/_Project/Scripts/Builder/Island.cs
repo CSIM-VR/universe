@@ -11,7 +11,7 @@ namespace SpaceBetweenUs
     ///   crystal filled -> "Lotus"   (only after ground and water)
     /// When all three are filled the island is alive.
     ///
-    /// A violent break in step 4 RUINS every island a fast fragment hits: life withers, the three slots are empty
+    /// A fast fragment (thrown hard, or the optional violent break) RUINS the island it hits: life withers, the three slots are empty
     /// again, and the island's rock / ice / crystal burst back out as fragments, so the Builder can rebuild it.
     /// </summary>
     public class Island : MonoBehaviour
@@ -22,7 +22,7 @@ namespace SpaceBetweenUs
         public LifeGrowth life;
         public float waterLifeDelay = 4f;
 
-        [Header("Ruin (violent break in step 4)")]
+        [Header("Ruin (hit by a fast fragment)")]
         public ParticleSystem damageEffect;
         [Tooltip("Spawned back out of a ruined island, one per filled slot (set by the scene builder).")]
         public MaterialFragment rockPrefab, icePrefab, crystalPrefab;

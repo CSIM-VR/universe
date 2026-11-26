@@ -6,11 +6,10 @@ namespace SpaceBetweenUs
     /// <summary>
     /// Small moving life on one island:
     ///  - the fish (children named Fish_0..n) swim around the lake, wiggling, at their own speed
-    ///  - the frog (child "Frog") hops along the lake shore now and then
     ///  - butterflies flutter over the island once the plants have grown (needs wingMaterial)
     ///  - dragonflies hover and dart over the lake once the water life is there (needs wingMaterial)
     /// Creatures only show while their stage of life is visible, so a ruined island loses them and gets them back.
-    /// Added to every island at runtime if missing (fish + frog work without any setup); Apply Imported Art adds it
+    /// Added to every island at runtime if missing (the fish work without any setup); Apply Imported Art adds it
     /// with the wing material for the flying ones.
     /// </summary>
     public class Critters : MonoBehaviour
@@ -29,21 +28,16 @@ namespace SpaceBetweenUs
         };
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void AddToIslands()
+        internal static void AddToIslands()
         {
             foreach (var island in FindObjectsByType<Island>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 if (!island.GetComponent<Critters>()) island.gameObject.AddComponent<Critters>();
         }
 
-        // ------------------------------------------------------------------ fish + frog
+        // ------------------------------------------------------------------ fish
         class Fish { public Transform t; public Quaternion rot0; public float a0, a, r, y, speed, phase; }
         readonly List<Fish> _fish = new();
         Vector3 _lake;            // lake centre in the fish's parent space
-        Transform _frog, _throat;
-        Vector3 _throatScale;
-        Quaternion _frogRot0, _frogRot1;
-        Vector3 _frogBase, _frogScale, _frogFrom, _frogTo;
-        float _frogNext, _frogT0 = -1f;
 
         // ------------------------------------------------------------------ flyers
         class Flyer
@@ -65,7 +59,7 @@ namespace SpaceBetweenUs
             foreach (var t in GetComponentsInChildren<Transform>(true))
             {
                 if (t.name.StartsWith("Fish_")) _fish.Add(new Fish { t = t });
-                else if (t.name == "Frog" && !_frog) _frog = t;
+                else if (t.name == "Frog") Destroy(t.gameObject);   // the frog was taken out (scenes built before that)
             }
             if (_fish.Count > 0)
             {
@@ -84,13 +78,6 @@ namespace SpaceBetweenUs
                 }
             }
             else _lake = new Vector3(0.12f, 0f, 0.1f);
-            if (_frog)
-            {
-                foreach (var c in _frog.GetComponentsInChildren<Transform>(true))
-                    if (c.name == "Throat") { _throat = c; _throatScale = c.localScale; break; }
-                _frogBase = _frog.localPosition;
-                _frogNext = Time.time + Random.Range(2f, 5f);
-            }
 
             // flyers appear with their stage of life
             var life = GetComponent<LifeGrowth>();
@@ -101,7 +88,8 @@ namespace SpaceBetweenUs
                     if (s.name == "Plants") _plants = s.growObjects;
                     else if (s.name == "WaterLife") _waterLife = s.growObjects;
                 }
-            _surfaceY = _fish.Count > 0 ? _fish[0].t.parent.TransformPoint(_lake).y - transform.position.y : 0f;
+            // lake height in island-local units (the island may be scaled)
+            _surfaceY = _fish.Count > 0 ? (_fish[0].t.parent.TransformPoint(_lake).y - transform.position.y) / Mathf.Max(1e-4f, transform.lossyScale.y) : 0f;
             if (wingMaterial) BuildFlyers();
         }
 
@@ -109,7 +97,6 @@ namespace SpaceBetweenUs
         {
             float t = Time.time, dt = Time.deltaTime;
             SwimFish(t, dt);
-            HopFrog(t);
             if (_flyRoot) Fly(t, dt);
         }
 
@@ -128,53 +115,6 @@ namespace SpaceBetweenUs
                 f.t.localRotation = Quaternion.Euler(0f, -(f.a - f.a0) * Mathf.Rad2Deg + wiggle, 0f) * f.rot0
                                     * (fishReverse ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity);
             }
-        }
-
-        void HopFrog(float t)
-        {
-            if (!_frog || !_frog.gameObject.activeInHierarchy) return;
-            if (_frogT0 < 0f && t >= _frogNext)
-            {
-                // hop to another spot on the lake shore
-                _frogFrom = _frog.localPosition;
-                _frogScale = _frog.localScale;
-                var d = _frogFrom - _lake;
-                float a = Mathf.Atan2(d.z, d.x) + Random.Range(0.5f, 1.1f) * (Random.value < 0.5f ? -1f : 1f);
-                float r = Mathf.Clamp(new Vector2(d.x, d.z).magnitude, 0.1f, 0.16f);
-                _frogTo = new Vector3(_lake.x + Mathf.Cos(a) * r, _frogBase.y, _lake.z + Mathf.Sin(a) * r);
-                _frogT0 = t;
-                // turn to face the jump (the frog art looks along +z)
-                _frogRot0 = _frog.localRotation;
-                var hopDir = _frogTo - _frogFrom; hopDir.y = 0f;
-                _frogRot1 = hopDir.sqrMagnitude > 1e-8f ? Quaternion.LookRotation(hopDir) : _frogRot0;
-            }
-            if (_frogT0 < 0f)
-            {
-                // sitting: the throat puffs in and out
-                if (_throat)
-                {
-                    float b = 1f + 0.35f * Mathf.Max(0f, Mathf.Sin(t * 5f)) * Mathf.Max(0f, Mathf.Sin(t * 0.8f));
-                    _throat.localScale = new Vector3(_throatScale.x * b, _throatScale.y * b, _throatScale.z * b);
-                }
-                return;
-            }
-            const float hop = 0.4f;
-            _frog.localRotation = Quaternion.Slerp(_frogRot0, _frogRot1, Mathf.Clamp01((t - _frogT0) / (hop * 0.4f)));
-            float k = (t - _frogT0) / hop;
-            if (k >= 1f)
-            {
-                _frog.localPosition = _frogTo;
-                _frog.localScale = _frogScale;
-                _frogT0 = -1f;
-                _frogNext = t + Random.Range(2.5f, 6f);
-                return;
-            }
-            var p = Vector3.Lerp(_frogFrom, _frogTo, k);
-            p.y += Mathf.Sin(k * Mathf.PI) * 0.035f;
-            _frog.localPosition = p;
-            // squash and stretch
-            float s = 1f + 0.25f * Mathf.Sin(k * Mathf.PI);
-            _frog.localScale = new Vector3(_frogScale.x / Mathf.Sqrt(s), _frogScale.y * s, _frogScale.z / Mathf.Sqrt(s));
         }
 
         // ------------------------------------------------------------------ butterflies + dragonflies

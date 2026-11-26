@@ -4,7 +4,7 @@ using UnityEngine;
 namespace SpaceBetweenUs
 {
     /// <summary>
-    /// Step 6: threads of light grow from each island to the asteroid it came from.
+    /// Step 3 (reveal): threads of light grow from each island to the asteroid it came from.
     /// islands[i] is linked to asteroids[i]. Wire GameFlowManager.onReveal -> Play().
     ///
     /// Each thread is a soft glowing curve (rises from the island, arcs over to the asteroid) with beads of light

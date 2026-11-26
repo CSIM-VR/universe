@@ -3,8 +3,8 @@ using UnityEngine;
 namespace SpaceBetweenUs
 {
     /// <summary>
-    /// Pressing A (right controller) or X (left) does the same as touching the central artifact.
-    /// In the Meta XR Simulator the A button is the "B" key.
+    /// Pressing any face button (A / B on the right controller, X / Y on the left) does the same as touching the
+    /// central artifact. In the Meta XR Simulator the A button is the "B" key.
     /// </summary>
     public class SwitchButton : MonoBehaviour
     {
@@ -13,8 +13,10 @@ namespace SpaceBetweenUs
         void Update()
         {
             if (flow == null) return;
-            if (XRHandInput.PrimaryButtonDown(Hand.Right) || XRHandInput.PrimaryButtonDown(Hand.Left))
-                flow.RequestSwitch();
+            bool right = XRHandInput.FaceButtonDown(Hand.Right), left = XRHandInput.FaceButtonDown(Hand.Left);
+            if (!right && !left) return;
+            Debug.Log($"[SwitchButton] {(right ? "right" : "left")} face button pressed");
+            flow.RequestSwitch();
         }
     }
 }

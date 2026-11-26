@@ -33,13 +33,20 @@ namespace SpaceBetweenUs
         // the rig is scaled up for the giant Destroyer: the panel scales and moves out with it
         float Rig => head ? head.lossyScale.x / _baseRig : 1f;
 
-        void Start()
+        // Read the resting pose in Awake: every Awake runs before PerspectiveSwitcher.Start scales the rig (the game
+        // can start as the x20 Destroyer), so this is always the panel at rig scale 1.
+        void Awake()
         {
             if (!head) head = transform.parent;
-            if (!head) { enabled = false; return; }
+            if (!head) return;
             _offset = transform.localPosition;
             _baseRig = head.lossyScale.x;
             _scale = transform.lossyScale;
+        }
+
+        void Start()
+        {
+            if (!head) { enabled = false; return; }
             transform.SetParent(null, true);
             _lastHead = head.position;
             _lastRig = 1f;

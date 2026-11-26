@@ -7,7 +7,7 @@ namespace SpaceBetweenUs
     /// A dead asteroid with three layers: shell (rock) -> inside (ice) -> core (crystal).
     /// Each strong hit opens one layer and releases fragments of that layer's material.
     ///
-    /// "Careful" mode (step 4, the last asteroid next to the islands):
+    /// "Careful" mode (optional, not used by the current flow):
     ///  - by default (requireGentle off) any touch frees the crystal, which drifts gently to the islands. Simple.
     ///  - with requireGentle on: a punch faster than maxSafeSpeed shatters it violently (fragments fly fast and ruin
     ///    islands); gentle taps (between minTapSpeed and maxSafeSpeed) open it slowly, after tapsNeeded taps the crystal

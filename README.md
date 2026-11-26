@@ -62,10 +62,10 @@ Assets/
 
 | Area | What | Main scripts |
 |---|---|---|
-| **World + switch** | XR rig, central artifact, perspective switch (grow / shrink ×20 in one shared space, hands, x-ray layer), role echo, 6-step flow | `PerspectiveSwitcher`, `GameFlowManager`, `CentralArtifact` |
-| **Destroyer** | Asteroid layers (shell → inside → core), punch / pull apart / throw, fragments falling to the islands below, last asteroid (step 4), x-ray shader | `Asteroid`, `MaterialFragment`, `HandVelocityTracker` |
+| **World + switch** | XR rig, central artifact, perspective switch (grow / shrink ×20 in one shared space, hands, x-ray layer), role echo, 3-step flow | `PerspectiveSwitcher`, `GameFlowManager`, `CentralArtifact` |
+| **Destroyer** | Asteroid layers (shell → inside → core), punch / pull apart / throw, fragments falling to the islands below (exactly one of each material per asteroid), x-ray shader | `Asteroid`, `MaterialFragment`, `HandVelocityTracker` |
 | **Builder** | Attract fragments, place rock, pour ice, plant crystal, island state | `FragmentAttractor`, `IslandSlot`, `Island` |
-| **Life + art + sound** | Moss / grass spreading, lake + stream, lotus, fireflies; swimming fish, hopping frog, butterflies, dragonflies, deer of light; sky, shooting stars, sounds | `LifeGrowth`, `Critters` + assets |
+| **Life + art + sound** | Moss / grass spreading, lake + stream, lotus, fireflies; swimming fish, butterflies, dragonflies, deer of light; sky, shooting stars, sounds | `LifeGrowth`, `Critters` + assets |
 
 ---
 
@@ -75,8 +75,8 @@ Assets/
 2. **Builder basics:** grab a rock fragment, drop it in a slot → moss grows.
 3. **Perspective switch:** touch the artifact → scale ×20, swap hands.
 4. **Full island recipe:** pour ice (lake), plant crystal (lotus), island alive.
-5. **6-step flow** with `GameFlowManager`; the last asteroid frees its crystal with one touch.
-6. **Life details:** swimming fish, frog, butterflies, dragonflies, fireflies, glowing deer (done). Idea left: fireflies following the hand.
+5. **3-step flow** with `GameFlowManager`: Destroyer opens 3 asteroids → Builder brings 3 islands to life → reveal.
+6. **Life details:** swimming fish, butterflies, dragonflies, fireflies, glowing deer (done). Idea left: fireflies following the hand.
 7. **Polish:** sounds, haptics, x-ray shader, reveal scene.
 
 ---
@@ -92,7 +92,7 @@ For floating movement: grab an asteroid and pull (simple script moving the rig o
 
 **Asteroid prefab:** trigger collider + `Asteroid`. Children: `Shell`, `Inside`, `Core`, `Broken` visuals.
 Veins inside go on the `XRay` layer. Assign the three fragment prefabs and `islandsDriftTarget`.
-Last asteroid: tick `carefulMode` (one touch frees the crystal; also tick `requireGentle` for the gentle-tap version). Events: `onOpened` → `GameFlowManager.AsteroidOpened()`.
+`fragmentsPerLayer` = 1 (set by the scene builder): one rock, one ice, one crystal per asteroid. `carefulMode` is an optional variant not used by the current flow. Events: `onOpened` → `GameFlowManager.AsteroidOpened()`.
 
 **Fragment prefabs (Rock / Ice / Crystal):** Rigidbody (no gravity) + collider + `MaterialFragment` + Meta Interaction SDK **Grabbable** (use the Grab Interaction building block / Quick Actions to make an object grabbable).
 Add an **Interactable Unity Event Wrapper** and wire: When Select → `OnGrabbed()`, When Unselect → `OnReleased()`.
@@ -111,13 +111,11 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 
 ## 7. The experience in one line per step
 
-1. **Builder:** barren islands, no materials. Look up: the asteroids float high above.
-2. **Destroyer:** grow up to the asteroids above the islands and break two of them; fragments fall to the islands at your feet.
-3. **Builder:** shrink back down among the islands. Rock = ground (moss), ice = lake (plants, swimming fish, a frog, dragonflies; then a stream and waterfall), crystal = lotus (trees, fireflies); butterflies come with the plants. Two islands come alive.
-4. **Destroyer:** grow again; the last crystal asteroid hangs in front of you, above the islands. Touch it once → the crystal drifts down to the islands.
-   (Optional harder version: tick `requireGentle` on `Asteroid_Last_Careful`. Then it needs 3 gentle taps, and a hard punch **ruins** every island it hits: life withers, the slots are empty again and the island's rock / ice / crystal burst back out, so the Builder has to rebuild it in step 5.)
-5. **Builder:** plant the last crystal; all three islands alive, and a deer made of light appears and leaps between the islands, grazing and drinking.
-6. **Reveal:** everything stands still; threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
+1. **Destroyer (you start as the giant):** three dead asteroids float in front of you. Punch each one 3 times: shell (rock) → inside (ice) → core (crystal). Each asteroid gives exactly **1 rock, 1 ice, 1 crystal**, one island's worth, so there are no spare materials. When all three are open, press **A / B** (or touch the gold gem) to become the Builder.
+2. **Builder:** shrink down among the islands, where the 9 fragments have drifted. Rock = ground (moss), ice = lake (plants, swimming fish, dragonflies; then a stream and waterfall), crystal = lotus (trees, fireflies); butterflies come with the plants. When the third island comes alive, a deer made of light appears and leaps between the islands.
+3. **Reveal (starts by itself when the third island is alive):** everything stands still; threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
+
+Because there are no spare materials, `FragmentKeeper` (added at Play) looks after them during step 2: a fragment that stays more than 2.5 m from the islands for 6 s is brought back, and if a material is missing (fewer fragments than empty slots need) a new one appears at the islands.
 
 ---
 
@@ -127,10 +125,10 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 plus placeholder prefabs/materials (`Prefabs/Prototype`, `Materials/Prototype`), creates the tags/layer, and wires every event.
 Re-running it overwrites only those generated files, so don't hand-edit them: copy them out first.
 
-- **With a Quest:** trigger = attract, grip = grab, punch / tap with the blue hands, touch the gold artifact (low, to your right) to switch.
+- **With a Quest:** trigger = attract, grip = grab, punch / tap with the blue hands, touch the gold artifact (low, to your right) or press **A / B / X / Y** to switch (the buttons work once the current step's goal is done, like the artifact). Buttons, trigger, grip and vibration go through both OVRInput and Unity XR input, and `ControllerAnchorFallback` (added at Play) places a hand anchor from the Unity XR controller pose whenever OVRInput reports no controller, so the hands stay on the controllers (Quest 3 Touch Plus). `DesktopRigSimulator` never turns on in a headset build. Check a device with `adb logcat -s Unity | grep "\[Rig\]"`. **Restart:** hold the menu button (left controller, ☰) for 2 s to reload the scene and start again from step 1 as the Destroyer (`RestartButton`, added at Play; Backspace in the Editor without a headset). A press logs `[SwitchButton]`; a refused switch logs `[Flow] Switch refused` (see with `adb logcat -s Unity`).
 - **Without a headset (Editor):** `DesktopRigSimulator` takes over. RMB+mouse = look, WASD/QE = move, wheel = reach, Tab = touch artifact.
-  Builder: Space = attract, LMB = grab/release, R = tilt (pour). Destroyer: LMB = punch, F = tap (both free the last crystal).
-- **Automated check:** *Space Between Us → Run Core Loop Smoke Test* plays all 6 steps by itself; look for `[SmokeTest] PASSED` in the Console.
+  Builder: Space = attract, LMB = grab/release, R = tilt (pour). Destroyer: LMB = punch (aim at an asteroid), F = gentle tap.
+- **Automated check:** *Space Between Us → Run Core Loop Smoke Test* plays all 3 steps by itself; look for `[SmokeTest] PASSED` in the Console.
   CI / headless: `Unity -batchmode -projectPath . -executeMethod SpaceBetweenUs.EditorTools.PrototypeSmokeTest.RunBatch -logFile -` (the editor must be closed).
 
 ---
@@ -147,7 +145,7 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
 | **Sky → Nebula 02** (and Apply Color Palette) | Sets the skybox and matches the ambient light to it. We use **Nebula 02**. |
 | **Reset Prototype Art** | Back to plain grey-box materials and prefabs. |
 | **Audio → Generate / Regenerate Placeholder Sounds** | Synthesises the `.wav` files in `Assets/_Project/Audio` (see Sound below). |
-| **Run Core Loop Smoke Test** | Plays all 6 steps by itself (§8). |
+| **Run Core Loop Smoke Test** | Plays all 3 steps by itself (§8). |
 | **Build → Prepare Quest Build** | Package name, scene list and target API for the Quest build (§9.6). |
 | **Debug → Report Broken Shaders** | Finds what renders magenta (§9.7). |
 
@@ -159,12 +157,13 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
   - The asteroids float high above the islands (the Builder looks UP to see them), at the giant's arm's reach.
   - Becoming the Destroyer: your hands turn blue and you **grow in place** (3 s, ×1 → ×20 around your feet). You rise straight up past the islands, which stay at your feet as a tiny model, and arrive right at the asteroids. The fragments you knock out fall down onto the islands below you.
   - Going back is the exact reverse: you **sink back down** from the asteroids and land among the islands.
-  - Step 4's last asteroid hangs between the two others, in front of the giant, above the islands.
+  - The game starts as the giant (`PerspectiveSwitcher.startRole` = Destroyer), with the three asteroids in a row in front of you.
+  - Island size: `IslandScale` (2) at the top of `PrototypeSceneBuilder`. The islands are scaled as a whole, so plants, fish, butterflies and the glowing deer grow with them; the ring they sit on grows too so they don't overlap. Rebuild the scene after changing it.
   - The hint panel shows **GROWING ×n / SHRINKING ×n** during the move.
   - Comfort: the scale follows a log curve (steady doubling); if you moved while in one role, the rig glides back to the anchor during the same motion.
   - Tune **Grow Time** on `PerspectiveSwitcher` (GameSystems), or untick **Grow Transition** for the old fade. Positions live in `PrototypeSceneBuilder` (`DestroyerAnchorPos`, `AsteroidLocal*`): **re-run Build Core Prototype Scene** after changing them.
   - The Meta XR Simulator shows one eye only. On a real Quest the distance between your eyes is scaled ×20 too, so the islands really look like a miniature.
-- **Echo of your other self (`RoleEcho`, added automatically):** when you switch, a faint glowing copy of the self you leave stays behind in the pose you had. As the giant, look down: your golden Builder (head, body, hands) stands among the islands, the size of your thumb. Back as the Builder, look up: the giant's blue hands still hang by the asteroids. **Strength** sets how bright the echo is.
+- **Echo of your other self (`RoleEcho`, added automatically):** when you switch, a faint glowing copy of the self you leave stays behind in the pose you had. As the giant, look down: your golden Builder (head, body, hands) stands among the islands, the size of your thumb. Back as the Builder, look up: the giant's blue hands (hands only, no head) still hang by the asteroids. **Strength** sets how bright the echo is.
 - **Hands of light:** Meta hand mesh with the `GhostHand` rim-glow shader. Builder = gold; Destroyer = blue and 1.3× larger. Fingers curl with GRIP (Destroyer: GRIP or TRIGGER). If fingers bend backwards, flip **Curl Sign** on `HandPose`. Colliders and gameplay are unchanged.
 
 **Islands and life**
@@ -173,18 +172,21 @@ Re-running it overwrites only those generated files, so don't hand-edit them: co
 - **Slot markers:** soft breathing glowing rings (gold = rock, cyan = ice, violet = crystal).
 - **Lake:** custom `StylizedWater` shader. Once the lake is full, a **stream** (`FlowingWater` + `StreamReveal`) runs across the island and spills over the edge as a waterfall into space.
 - **Life:** Flora pack grass lawn with small flowers, bushes with ferns, mushrooms and pebbles, reeds, three trees, and a lotus with pads. Fish come from Floreswa. Plants are capped at 2.5× their height in width, so flat models can't blow up.
-- **Moving life (`Critters`, on every island, added automatically):** the fish swim round the lake with a little wiggle (tick **Fish Reverse** if one swims backwards), the frog (built from shapes by *Apply Imported Art*: spotted green body, bulging eyes, pale throat that puffs while it sits, folded legs; ~3.5 cm) turns and hops along the shore, butterflies (different colours per island) flutter over the island and rest now and then once the plants have grown, dragonflies hover and dart over the lake once the water life is there. All procedural, drawn with the `CritterWing` shader (no textures); *Apply Imported Art* creates `CritterWing.mat` and assigns it (without it only fish and frog move). They vanish with a ruined island and come back when it is rebuilt.
+- **Moving life (`Critters`, on every island, added automatically):** the fish swim round the lake with a little wiggle (tick **Fish Reverse** if one swims backwards), butterflies (different colours per island) flutter over the island and rest now and then once the plants have grown, dragonflies hover and dart over the lake once the water life is there. All procedural, drawn with the `CritterWing` shader (no textures); *Apply Imported Art* creates `CritterWing.mat` and assigns it (without it only the fish move). They vanish with a ruined island and come back when it is rebuilt.
 - **Deer of light (`GlowDeer`, added automatically):** once all three islands are alive, a deer built from simple shapes and drawn with the glowing `GhostHand` shader (strong inner fill, soft gold, gold motes drifting off it) fades in on `Island_3`. It then lives between the islands: on each one it grazes the lawn, drinks at the lake, looks up at you, trots to the edge and **leaps across the gap** to a neighbouring island. Ears flick, the tail swishes. If an island is ruined it fades away and returns when all live again. About 11 cm tall (back) at the default **Size** 2.4. Options: **Start Island**, **Colour**, **Inner Fill**, **Motes**, **Size**, **Walk Speed**, **Leap Height / Time**, **Wait For All Islands**.
 - **Fragments:** rock (Mid Moon), ice (Asteroid_5 shape in an ice material with snowflake sparkles), crystal (SineVFX).
 
 **Sky and the reveal**
 
 - **Sky:** Nebula 02 cubemap; ambient light sampled from the sky. The star particles twinkle (`TwinkleStar` shader, each star has its own speed; a few flare now and then), and `ShootingStars` sends a silent, straight shooting star (a 2-point line, head bright, tail fading) every 8–15 s, within 50° of where you are looking and 15–40° above the horizon (**View Spread**, **Elevation**, **Interval**, **Tail Length** on `Stars`).
-- **Step 6 threads:** soft glowing curves (`LightThread`) from each island to its asteroid. At the reveal **the world stands still**: loose fragments freeze where they are and the islands and asteroids don't move, only the threads grow and glow (the little creatures keep living). In the shared space the three asteroids hang in front of you above the islands, so every thread ends where you can see it by looking up. `RevealThreads` options: **Freeze Fragments** (on), **Gather Asteroids** (off; glides the asteroids closer into view instead).
+- **Reveal threads:** soft glowing curves (`LightThread`) from each island to its asteroid. At the reveal **the world stands still**: loose fragments freeze where they are and the islands and asteroids don't move, only the threads grow and glow (the little creatures keep living). In the shared space the three asteroids hang in front of you above the islands, so every thread ends where you can see it by looking up. `RevealThreads` options: **Freeze Fragments** (on), **Gather Asteroids** (off; glides the asteroids closer into view instead).
 
 **Hints and sound**
 
 - **Hint text:** 3D `TextMesh` with the `HintText` shader (Canvas text flickered in the headset). `HudFollow` lets it float in front of you, recentre when you look away, and scale with the giant Destroyer rig. Tweak **Line Height** / **Wrap Chars** on `FlowHints` and **Dead Zone** / **Settle Angle** on `HudFollow`.
+  - Layout, the same for every step: title (role + "step n of 2") → **GOAL** → **HOW** → **DONE** (progress) → **KEYS**. Once the Destroyer has opened all three asteroids a gold **► NEXT** line tells you to press A / B.
+  - Progress dots: Destroyer = one dot per opened asteroid; Builder = three dots per island (rock gold, ice blue, crystal violet; a grey ring = still missing), and an island's name turns gold when it is alive.
+  - `HudFollow` reads its resting size in `Awake`, before the rig is scaled, so the panel is the right size even though the game starts as the ×20 Destroyer.
 - **Sound:** `SoundDirector` (scene object `Audio`) listens to the gameplay events itself:
   - ambience per role, cross-faded on the switch: calm deep-space drones (48 s seamless loop; open chord with no third, slowly beating voices, a low "solar wind", rare far-away glimmers with echoes). Builder = D, a little warmer; Destroyer = A, lower and darker;
   - switch whoosh;
@@ -238,7 +240,7 @@ Run **Space Between Us → Debug → Report Broken Shaders**. It writes `Logs/Sh
 
 ### 9.8 Still to check on a real Quest
 
-- Frame rate with everything alive: three islands of plants, fish, frogs, butterflies, dragonflies, the deer and its motes.
+- Frame rate with everything alive: three islands of plants, fish, butterflies, dragonflies, the deer and its motes.
 - Comfort of growing / shrinking ×20 in place (3 s). If it feels too strong, raise **Grow Time** or untick **Grow Transition**.
 - How big the ×20 change feels with real stereo (the simulator shows one eye only).
 - Hand finger curl direction (`HandPose` **Curl Sign**) and hint text readability in the headset.

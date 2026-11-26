@@ -37,47 +37,99 @@ namespace SpaceBetweenUs
             if (h > 1e-5f && ls > 1e-7f) mesh.characterSize = lineHeight / (h * ls);
         }
 
+        // colours: role headers and the three materials (same as the hands and the slot rings)
+        const string Gold = "#FFC94A", Blue = "#5AA0FF", Grey = "#8A8F99";
+        const string RockC = "#FFC94A", IceC = "#6FD8FF", CrystalC = "#C08BFF";
+        const string Big = "<size=34>";   // replaced by 1.5 x the font size
+
+        Island[] _islands;
+
+        static string C(string colour, string s) => $"<color={colour}>{s}</color>";
+        static string Label(string s) => C(Grey, s.PadRight(6));
+
+        /// <summary>One dot per thing: filled in its colour when done, a grey ring when not.</summary>
+        static string Dot(bool done, string colour) => done ? C(colour, "\u25CF") : C(Grey, "\u25CB");
+
+        string Destroyer()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"{Big}<b>{C(Blue, "DESTROYER")}</b></size>   {C(Grey, "step 1 of 2  \u00B7  you are the giant")}\n\n");
+            sb.Append($"{Label("GOAL")}Free the materials for the islands\n");
+            sb.Append($"{Label("HOW")}Punch each asteroid 3 times:\n");
+            sb.Append($"{Label("")}{C(RockC, "rock")}  \u2192  {C(IceC, "ice")}  \u2192  {C(CrystalC, "crystal")}\n");
+            sb.Append($"{Label("DONE")}");
+            for (int i = 0; i < flow.asteroidsToOpen; i++) sb.Append(Dot(i < flow.AsteroidsOpened, Blue)).Append(' ');
+            sb.Append($"  {flow.AsteroidsOpened} / {flow.asteroidsToOpen} asteroids");
+            return sb.ToString();
+        }
+
+        string Builder()
+        {
+            if (_islands == null || _islands.Length == 0)
+            {
+                _islands = FindObjectsByType<Island>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                System.Array.Sort(_islands, (x, y) => string.CompareOrdinal(x.name, y.name));
+            }
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"{Big}<b>{C(Gold, "BUILDER")}</b></size>   {C(Grey, "step 2 of 2  \u00B7  you are small again")}\n\n");
+            sb.Append($"{Label("GOAL")}Bring the 3 islands to life\n");
+            sb.Append($"{Label("HOW")}Give each island, in this order:\n");
+            sb.Append($"{Label("")}1  {C(RockC, "Rock")}  \u2192  gold ring  (ground)\n");
+            sb.Append($"{Label("")}2  {C(IceC, "Ice")}  \u2192  blue ring  (lake, tilt to pour)\n");
+            sb.Append($"{Label("")}3  {C(CrystalC, "Crystal")}  \u2192  violet ring  (after the lake)\n");
+            sb.Append($"{Label("DONE")}");
+            for (int i = 0; i < _islands.Length; i++)
+            {
+                var isl = _islands[i];
+                if (!isl) continue;
+                if (i > 0) sb.Append("   ");
+                sb.Append(isl.IsAlive ? C(Gold, $"Island {i + 1}") : $"Island {i + 1}").Append(' ');
+                sb.Append(Dot(isl.groundSlot && isl.groundSlot.IsFilled, RockC));
+                sb.Append(Dot(isl.waterSlot && isl.waterSlot.IsFilled, IceC));
+                sb.Append(Dot(isl.lifeSlot && isl.lifeSlot.IsFilled, CrystalC));
+            }
+            return sb.ToString();
+        }
+
         void Update()
         {
             if (flow == null) return;
-            const string builder = "<size=34><b><color=#FFC94A>YOU ARE THE BUILDER</color></b></size>  <color=#FFC94A>(gold hand)</color>\n";
-            const string destroyer = "<size=34><b><color=#5AA0FF>YOU ARE THE DESTROYER</color></b></size>  <color=#5AA0FF>(blue hand, giant)</color>\n";
+            bool destroyerNow = switcher != null && switcher.Current == Role.Destroyer;
             string body = flow.Step switch
             {
-                1 => builder + "The islands below are barren. Look UP: the asteroids are in the sky.\nTouch the glowing gold gem (low, to your right) to become the Destroyer.",
-                2 => destroyer + $"Punch the two asteroids open: shell (rock) > inside (ice) > core (crystal).\nOpened {flow.AsteroidsOpened}/2",
-                3 => builder + $"Trigger = attract fragments, grip = grab.\nRock: let go near the gold ring.  Ice: let go in the cyan ring (or hold + tilt to pour faster).\nCrystal: let go in the violet ring once there is water.\nIslands alive {flow.IslandsAlive}/2  (also give island 3 ground + lake)",
-                4 => destroyer + "The last asteroid is in front of you, right above the islands.\nTouch it to free the last crystal.",
-                5 => builder + (flow.IslandsLost > 0
-                        ? $"The hard punch RUINED {flow.IslandsLost} island(s)! Their rock, ice and crystal flew back out.\nRebuild them, and give island 3 ground + lake + the last crystal.\nIslands alive {flow.IslandsAlive}/3"
-                        : $"Plant the last crystal in island 3 (ground + lake first).\nIslands alive {flow.IslandsAlive}/3"),
-                _ => "<size=34><b>Were we ever truly separate?</b></size>"
+                1 => Destroyer(),
+                2 => Builder(),
+                _ => $"{Big}<b>Were we ever truly separate?</b></size>"
             };
-            if (switcher != null && switcher.IsSwitching && switcher.xrOrigin)
+            bool sizing = switcher != null && switcher.IsSwitching && switcher.xrOrigin;
+            if (sizing)
             {
                 // while the size changes: show it, and tell the player where to look
                 int x = Mathf.RoundToInt(switcher.xrOrigin.localScale.x);
-                bool growing = switcher.Current == Role.Destroyer;
-                body = growing
-                    ? $"<size=34><b><color=#5AA0FF>GROWING  x{x}</color></b></size>\nYou rise up to the asteroids. Look down: the islands stay at your feet."
-                    : $"<size=34><b><color=#FFC94A>SHRINKING  x{x}</color></b></size>\nYou sink back down from the asteroids to the islands.";
+                body = destroyerNow
+                    ? $"{Big}<b>{C(Blue, $"GROWING  x{x}")}</b></size>\n\nYou rise up to the asteroids.\nLook down: the islands stay at your feet."
+                    : $"{Big}<b>{C(Gold, $"SHRINKING  x{x}")}</b></size>\n\nYou sink back down to the islands.\nThe materials are drifting to them.";
             }
-            else if (flow.GoalDone && flow.Step < 6) body += "\n\n>> Goal done - touch the artifact to switch <<";
-            bool sizing = switcher != null && switcher.IsSwitching;
-            if (sizing) { }
-            else if (simulator != null && simulator.Active && flow.Step < 6)
-                body += switcher != null && switcher.Current == Role.Destroyer
-                    ? "\n\n[desktop] RMB+drag look | LEFT CLICK = punch (aim at an asteroid) | F gentle tap | Tab touch gem"
-                    : "\n\n[desktop] RMB+drag look | WASD/QE move | Space attract | LEFT CLICK grab/release\n R tilt (pour) | wheel reach | Tab touch gem";
-            else if (flow.Step < 6)
-                body += switcher != null && switcher.Current == Role.Destroyer
-                    ? "\n\n[controller] punch the asteroid, or TRIGGER near it = punch, GRIP = gentle tap | A = switch"
-                    : "\n\n[controller] TRIGGER = attract | GRIP = grab | tilt to pour | A = switch";
+            else if (!flow.Revealed)
+            {
+                if (flow.GoalDone)
+                    body += $"\n\n<b>{C(Gold, "\u25BA  NEXT   Press A / B to become the Builder")}</b>\n{Label("")}{C(Gold, "(or touch the gold gem)")}";
+                string keys;
+                if (simulator != null && simulator.Active)
+                    keys = destroyerNow
+                        ? "Right-drag look  \u00B7  Left click punch\nF gentle tap  \u00B7  Tab gem"
+                        : "Right-drag look  \u00B7  WASD/QE move\nSpace pull  \u00B7  Left click grab  \u00B7  R tilt (pour)\nWheel reach  \u00B7  Tab gem";
+                else
+                    keys = destroyerNow
+                        ? "TRIGGER punch  \u00B7  GRIP gentle tap\nA / B switch  \u00B7  hold MENU restart"
+                        : "TRIGGER pull  \u00B7  GRIP grab / let go  \u00B7  tilt to pour\nA / B switch  \u00B7  hold MENU restart";
+                body += $"\n\n{Label("KEYS")}{C(Grey, keys.Replace("\n", "\n" + "      "))}";
+            }
             if (body == _last) return;
             _last = body;
             if (mesh)
             {
-                mesh.text = Wrap(body.Replace("<size=34>", "<size=" + Mathf.RoundToInt(mesh.fontSize * 1.5f) + ">"), wrapChars);
+                mesh.text = Wrap(body.Replace(Big, "<size=" + Mathf.RoundToInt(mesh.fontSize * 1.5f) + ">"), wrapChars);
                 // the dynamic font atlas can be rebuilt (new texture) when new characters are added
                 if (_mr && mesh.font) _mr.material.mainTexture = mesh.font.material.mainTexture;
             }

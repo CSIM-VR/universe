@@ -46,13 +46,14 @@ namespace SpaceBetweenUs
         Island[] _islands;
         Island _on;
         Transform _root, _body, _neck, _head, _earL, _earR, _tail;
+        float _k = 1f;   // island scale: the deer, its steps and leaps grow with the islands
         readonly List<(Transform hip, Transform knee, float phase, bool front)> _legs = new();
         Material _mat;
         ParticleSystem _motes;
         float _gaitPhase, _walkBlend, _leap, _neckPitch = 35f, _headPitch = 15f, _lookYaw, _chew;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void AddToScene()
+        internal static void AddToScene()
         {
             if (FindAnyObjectByType<GlowDeer>() || !FindAnyObjectByType<Island>()) return;
             new GameObject("GlowDeer").AddComponent<GlowDeer>();
@@ -69,6 +70,10 @@ namespace SpaceBetweenUs
                 startIsland = _islands[_islands.Length - 1];
                 foreach (var i in _islands) if (i.name == "Island_3") startIsland = i;
             }
+            _k = Mathf.Max(0.01f, _islands[0].transform.lossyScale.x);
+            size *= _k;
+            walkSpeed *= _k;
+            leapHeight *= _k;
             _mat = MakeMaterial();
             if (!_mat) { Debug.LogWarning("[GlowDeer] no GhostHand material found"); enabled = false; return; }
             Build();
@@ -193,7 +198,7 @@ namespace SpaceBetweenUs
             em.rateOverTime = 7f;
             var shape = _motes.shape;
             shape.shapeType = ParticleSystemShapeType.Sphere;
-            shape.radius = 0.03f;
+            shape.radius = 0.03f * _k;
             var col = _motes.colorOverLifetime;
             col.enabled = true;
             var g = new Gradient();
@@ -221,7 +226,7 @@ namespace SpaceBetweenUs
             var fromLocal = i.transform.InverseTransformPoint(fromWorld);
             var d = fromLocal - lakeCentre; d.y = 0f;
             if (d.sqrMagnitude < 1e-6f) d = Vector3.left;
-            return OnIsland(i, lakeCentre + d.normalized * (lakeRadius + 0.024f * size));
+            return OnIsland(i, lakeCentre + d.normalized * (lakeRadius + 0.024f * size / _k));
         }
 
         Vector3 GrassSpot(Island i)
@@ -293,8 +298,8 @@ namespace SpaceBetweenUs
                     var next = NextIsland();
                     if (!next || !AllAlive()) continue;
                     Vector3 across = Flat(next.transform.position - _on.transform.position).normalized;
-                    Vector3 takeOff = _on.transform.position + across * (islandRadius - 0.01f); takeOff.y = OnIsland(_on, Vector3.zero).y;
-                    Vector3 landing = next.transform.position - across * (islandRadius - 0.03f); landing.y = OnIsland(next, Vector3.zero).y;
+                    Vector3 takeOff = _on.transform.position + across * (islandRadius - 0.01f) * _k; takeOff.y = OnIsland(_on, Vector3.zero).y;
+                    Vector3 landing = next.transform.position - across * (islandRadius - 0.03f) * _k; landing.y = OnIsland(next, Vector3.zero).y;
                     yield return WalkTo(takeOff);
                     yield return FaceTo(landing, 0.4f);
                     yield return Leap(takeOff, landing);

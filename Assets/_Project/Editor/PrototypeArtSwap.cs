@@ -546,7 +546,7 @@ namespace SpaceBetweenUs.EditorTools
             }
             else if (!twinkle) Report.Add("TwinkleStar shader not imported yet - run again for twinkling stars");
 
-            // ---- little moving life on the islands: fish swim, frog hops, butterflies + dragonflies (Critters)
+            // ---- little moving life on the islands: fish swim, butterflies + dragonflies (Critters)
             var critterShader = Shader.Find("SpaceBetweenUs/CritterWing");
             if (critterShader)
             {
@@ -561,7 +561,7 @@ namespace SpaceBetweenUs.EditorTools
                     EditorUtility.SetDirty(cr);
                     n++;
                 }
-                Report.Add($"Critters on {n} island(s): swimming fish, hopping frog, butterflies, dragonflies");
+                Report.Add($"Critters on {n} island(s): swimming fish, butterflies, dragonflies");
             }
             else Report.Add("CritterWing shader not imported yet - run again for butterflies / dragonflies");
 
@@ -654,7 +654,7 @@ namespace SpaceBetweenUs.EditorTools
             int n = 0;
             foreach (var name in new[] { "BuilderHand_Left", "BuilderHand_Right", "DestroyerHand_Left", "DestroyerHand_Right" })
             {
-                // GameObject.Find skips inactive objects, and the destroyer hands start hidden (until step 4)
+                // GameObject.Find skips inactive objects, and the hands of the role you are not start hidden
                 var go = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None)
                     .Select(t => t.gameObject).FirstOrDefault(g => g.name == name && g.scene == scene);
                 if (!go) { Report.Add($"(hand '{name}' not in scene)"); continue; }
@@ -979,73 +979,21 @@ namespace SpaceBetweenUs.EditorTools
             }
             if (fish.Length > 0) Report.Add("Fish_0..2 -> Floreswa fish01/02/03");
 
-            BuildFrog(root);
+            RemoveFrog(root);
         }
 
-        /// <summary>
-        /// The frog was a green ball. Now a little sitting frog built from shapes: flat body tilted up at the front,
-        /// wide head, bulging eyes with pupils, pale throat (it breathes, see Critters), folded hind legs, front legs,
-        /// dark spots. About 3.5 cm long. Critters makes it hop and face where it hops.
-        /// </summary>
-        static void BuildFrog(GameObject root)
+        /// <summary>The frog was taken out: removes the old Frog object from scenes built before that.</summary>
+        static void RemoveFrog(GameObject root)
         {
             var frog = Find(root.transform, "Frog");
             if (!frog) return;
-            Hide(frog);
-            // the grey-box ball (centre 1.5 cm up, 0.9 cm half height) was squashed with its scale; the art is sized in
-            // metres instead, standing where the ball's bottom was (fixed numbers, so re-running gives the same result)
-            frog.localScale = Vector3.one;
-            frog.localRotation = Quaternion.Euler(0f, 140f, 0f);   // looking toward the lake
-            var art = new GameObject("Art_Frog").transform;
-            art.SetParent(frog, false);
-            const float F = 1.4f;
-            const float B = -0.009f;   // local y of the ground under the frog
-
-            var skin = FrogMat("Frog_Skin", new Color(0.32f, 0.62f, 0.18f), 0.65f);
-            var spot = FrogMat("Frog_Spot", new Color(0.12f, 0.3f, 0.08f), 0.6f);
-            var belly = FrogMat("Frog_Belly", new Color(0.86f, 0.9f, 0.62f), 0.5f);
-            var eye = FrogMat("Frog_Eye", new Color(0.9f, 0.78f, 0.25f), 0.85f);
-            var pupil = FrogMat("Frog_Pupil", new Color(0.02f, 0.02f, 0.02f), 0.95f);
-
-            void Part(string n, PrimitiveType type, Vector3 pos, Vector3 scale, Vector3 euler, Material m)
-            {
-                var go = GameObject.CreatePrimitive(type);
-                Object.DestroyImmediate(go.GetComponent<Collider>());
-                go.name = n;
-                go.transform.SetParent(art, false);
-                go.transform.localPosition = new Vector3(pos.x * F, B + pos.y * F, pos.z * F);
-                go.transform.localRotation = Quaternion.Euler(euler);
-                go.transform.localScale = scale * F;
-                var r = go.GetComponent<MeshRenderer>();
-                r.sharedMaterial = m;
-                r.shadowCastingMode = ShadowCastingMode.Off;
-            }
-            Part("Body", PrimitiveType.Sphere, new Vector3(0f, 0.009f, -0.002f), new Vector3(0.022f, 0.013f, 0.028f), new Vector3(-15f, 0f, 0f), skin);
-            Part("Head", PrimitiveType.Sphere, new Vector3(0f, 0.013f, 0.011f), new Vector3(0.021f, 0.011f, 0.017f), new Vector3(-8f, 0f, 0f), skin);
-            Part("Throat", PrimitiveType.Sphere, new Vector3(0f, 0.008f, 0.014f), new Vector3(0.012f, 0.006f, 0.009f), Vector3.zero, belly);
-            foreach (float sx in new[] { -1f, 1f })
-            {
-                Part("Eye", PrimitiveType.Sphere, new Vector3(0.0062f * sx, 0.0185f, 0.0125f), Vector3.one * 0.0075f, Vector3.zero, eye);
-                Part("Pupil", PrimitiveType.Sphere, new Vector3(0.0075f * sx, 0.0205f, 0.0148f), new Vector3(0.0035f, 0.0035f, 0.002f), Vector3.zero, pupil);
-                Part("FrontLeg", PrimitiveType.Capsule, new Vector3(0.0075f * sx, 0.004f, 0.012f), new Vector3(0.0032f, 0.0045f, 0.0032f), new Vector3(15f, 0f, -12f * sx), skin);
-                Part("FrontFoot", PrimitiveType.Sphere, new Vector3(0.009f * sx, 0.0005f, 0.015f), new Vector3(0.0055f, 0.0015f, 0.005f), Vector3.zero, skin);
-                Part("Thigh", PrimitiveType.Sphere, new Vector3(0.011f * sx, 0.005f, -0.008f), new Vector3(0.008f, 0.0065f, 0.016f), new Vector3(0f, 20f * sx, 0f), skin);
-                Part("HindFoot", PrimitiveType.Sphere, new Vector3(0.013f * sx, 0.001f, 0.002f), new Vector3(0.007f, 0.002f, 0.011f), new Vector3(0f, -15f * sx, 0f), skin);
-                Part("Spot", PrimitiveType.Sphere, new Vector3(0.0045f * sx, 0.0155f, -0.004f), new Vector3(0.006f, 0.0025f, 0.006f), Vector3.zero, spot);
-            }
-            Part("Spot", PrimitiveType.Sphere, new Vector3(0f, 0.0165f, -0.011f), new Vector3(0.007f, 0.0025f, 0.006f), Vector3.zero, spot);
-            Report.Add($"{root.name}: Frog -> a little sitting frog (was a green ball)");
-        }
-
-        static Material FrogMat(string name, Color c, float smooth)
-        {
-            string path = $"{MatDir}/{name}.mat";
-            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (!m) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
-            m.SetColor("_BaseColor", c);
-            m.SetFloat("_Smoothness", smooth);
-            EditorUtility.SetDirty(m);
-            return m;
+            var life = root.GetComponentInChildren<LifeGrowth>(true);
+            if (life && life.stages != null)
+                foreach (var st in life.stages)
+                    if (st.growObjects != null)
+                        st.growObjects = System.Array.FindAll(st.growObjects, t => t && t != frog);
+            Object.DestroyImmediate(frog.gameObject);
+            Report.Add($"{root.name}: Frog removed");
         }
 
         static void DressAsteroid(GameObject root)

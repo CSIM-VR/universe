@@ -47,9 +47,13 @@ namespace SpaceBetweenUs
 
         void Awake()
         {
+#if UNITY_EDITOR || UNITY_STANDALONE
             Active = forceSimulation || !UnityEngine.XR.XRSettings.isDeviceActive;
+#else
+            Active = false;   // a headset build (Quest): never simulate, even if XR reports "not active" for a moment at start
+#endif
             XRHandInput.SimulationActive = Active;
-            if (!Active) { enabled = false; return; }
+            if (!Active) { Debug.Log($"[DesktopRigSimulator] Off (XR device active = {UnityEngine.XR.XRSettings.isDeviceActive})."); enabled = false; return; }
 
             // stop the Meta rig from overwriting the anchors with (absent) tracking data
             var ovrRig = GetComponent("OVRCameraRig") as Behaviour;
