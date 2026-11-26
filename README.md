@@ -11,6 +11,46 @@ They look like opposites but depend on each other: one process, not two.
 
 ---
 
+## At a glance (for slides)
+
+**Two Virtual Subjectivenesses (VS)**
+
+| | **Destroyer** | **Builder** |
+|---|---|---|
+| Who | A giant (×20); the game starts here | Human size, standing among the islands |
+| Sees | Asteroids within reach; the islands as a tiny model at your feet; glowing veins inside the asteroids (x-ray) | Asteroids high in the sky; the islands up close: grass, lake, creatures |
+| Does | Punches asteroids open with **blue hands of light** to free the materials | Pulls, grabs and places fragments with **gold hands of light**; pours water, plants crystals |
+| Feel | Power; low, dark ambience | Care and detail; warmer ambience |
+
+Both share **one space and one spot**: you switch by growing / shrinking in place in 3 s (×1 ↔ ×20), with no cut and no teleport. The role you leave stays behind as a faint glowing echo. Destruction gives the material for creation; at the end, threads of light show the two were never separate.
+
+**Flow (3 steps)**
+1. **Destroyer:** punch each of the 3 asteroids 3 times: rock → ice → crystal (9 pieces, exactly enough for 3 islands). Press A / B to shrink.
+2. **Builder:** give each island rock → gold ring, ice → blue ring, crystal → violet ring.
+3. **Reveal** (automatic when all 3 islands are alive): the world stands still, threads of light link each island to its asteroid. *"Were we ever truly separate?"*
+
+**What grows on each island**
+- **Rock:** soil, grass, small flowers
+- **Ice:** lake, reeds, bushes, mushrooms, butterflies → stream and waterfall → fish and dragonflies
+- **Crystal:** lotus, lily pads, trees, fireflies
+- **All 3 islands alive:** a deer of light that leaps between the islands
+
+**Look and sound**
+- Nebula sky with twinkling stars and silent shooting stars.
+- A space ambience for each role that cross-fades on the switch, plus sounds for punching, pulling, placing, pouring, growing, an island coming alive and the ending.
+
+**Controls:** trigger = pull / punch · grip = grab · A / B = switch · hold MENU 2 s = restart
+
+**On-screen hints**
+- A small panel floats in front of you and follows when you look away. It has the same layout in every step: **role + step** → **GOAL** → **HOW** → **DONE** (progress) → **KEYS**.
+- Destroyer: one dot per opened asteroid (●●○ 2 / 3). When all are open, a gold **► NEXT: press A / B to become the Builder** appears.
+- Builder: three dots per island in the material colours (rock gold, ice blue, crystal violet; grey ring = still missing); an island's name turns gold when it is alive.
+- While switching it shows **GROWING ×n / SHRINKING ×n**. At the end only the closing line remains.
+
+Details: §7 (step by step, what grows when, background and sound) and §8 (how it is built).
+
+---
+
 ## 1. Getting started
 
 1. Install Git. (Git LFS is **not** used: every file in the repo must stay under GitHub's 100 MB limit, see §9.4.)
@@ -114,6 +154,42 @@ Ground = Rock / Place, Lake = Ice / Pour, Lotus spot = Crystal / HoldStill (in t
 1. **Destroyer (you start as the giant):** three dead asteroids float in front of you. Punch each one 3 times: shell (rock) → inside (ice) → core (crystal). Each asteroid gives exactly **1 rock, 1 ice, 1 crystal**, one island's worth, so there are no spare materials. When all three are open, press **A / B** (or touch the gold gem) to become the Builder.
 2. **Builder:** shrink down among the islands, where the 9 fragments have drifted. Rock = ground (moss), ice = lake (plants, swimming fish, dragonflies; then a stream and waterfall), crystal = lotus (trees, fireflies); butterflies come with the plants. When the third island comes alive, a deer made of light appears and leaps between the islands.
 3. **Reveal (starts by itself when the third island is alive):** everything stands still; threads of light link each island to the asteroid it came from. *"Were we ever truly separate?"*
+
+**What grows when (on each island, during step 2)**
+
+| You place… | Life stage | What appears |
+|---|---|---|
+| **Rock** in the gold ring | `Moss` (at once) | Soil and a lawn: grass clusters with small flowers (purple, yellow, pink, chamomile, mint) |
+| **Ice** in the blue ring | `Plants` (at once) | The lake fills; reeds around the lake; bushes (bush, lilac, fern) with ferns, mushrooms and pebbles; **butterflies** start fluttering over the island |
+| | (lake full) | A **stream** runs over the island edge and falls into space as a **waterfall** |
+| | `WaterLife` (3 s later) | **3 fish** swim round the lake; **dragonflies** hover and dart over the water |
+| **Crystal** in the violet ring (appears once there is a lake) | `Lotus` | A **lotus** flower and lily pads on the lake; **trees** (one big, two small); **fireflies** |
+| **All three islands alive** | – | A **deer of light** fades in on island 3, grazes, drinks, looks at you and leaps between the islands. At the same moment the reveal starts (the creatures keep living during it) |
+
+The order is fixed: rock → ice → crystal. A ruined island (hit by a fragment thrown hard) loses its life and creatures and gets them back when rebuilt.
+
+**What you see and hear (background and sound)**
+
+- **Sky:** deep space all around you: a coloured nebula (Nebula 02 skybox, which also lights the scene), **twinkling stars** (each at its own pace, a few flare now and then) and a **shooting star** every 8–15 s, somewhere near where you are looking, above the horizon. Shooting stars are silent on purpose.
+- **Asteroids:** dead grey rock; only the Destroyer sees the **glowing veins** inside (x-ray).
+- **Hands of light:** gold hands for the Builder, larger blue hands for the Destroyer. The role you just left stays behind as a faint glowing echo.
+- **Reveal:** the world stands still and soft **threads of light** grow from each island up to the asteroid it came from.
+
+| Moment | Sound |
+|---|---|
+| Background, as the **Destroyer** | Calm deep-space drone, lower and darker (in A); a low "solar wind" and rare far-away glimmers |
+| Background, as the **Builder** | The same kind of drone, a little warmer (in D). The two cross-fade when you switch |
+| Switching roles | Whoosh |
+| Punching an asteroid open | Punch hit for each layer |
+| Pulling fragments (trigger) | Soft hum while pulling |
+| Grabbing / placing rock | Grab click / rock settling into the ground |
+| Ice | Pouring water, then a fill sound when the lake is full |
+| Crystal | Crystal chime |
+| Life growing | Soft growth sound for each stage |
+| An island comes alive | Island-alive chime |
+| Reveal | Closing chord; the background drone gets quieter |
+
+The sounds are placeholders made in code (*Space Between Us → Audio → Generate Placeholder Sounds*); drop in a real `.wav` with the same name to replace one (see §8 "Hints and sound").
 
 Because there are no spare materials, `FragmentKeeper` (added at Play) looks after them during step 2: a fragment that stays more than 2.5 m from the islands for 6 s is brought back, and if a material is missing (fewer fragments than empty slots need) a new one appears at the islands.
 
