@@ -51,18 +51,15 @@ Both share **one space and one spot**: you switch by growing / shrinking in plac
 ## Run
 
 1. Clone the repo and open it with **Unity Hub** (same Unity version). If Unity asks, run **Meta XR → Project Setup Tool → Fix All**.
-2. Open `Assets/_Project/Scenes/Prototype_Core.unity`.
-3. After pulling changes to the scene builder or art: **Space Between Us → Build Core Prototype Scene** (it also runs **Apply Imported Art**), then save the scene.
-4. Press **Play**.
+2. Open `Assets/_Project/Scenes/Universe.unity`.
+3. Press **Play**. The scene is hand-built: change it directly in the Editor (one person edits it at a time).
    - **Meta XR Simulator** or a Link headset: the controllers drive the rig.
    - **No headset:** desktop controls. Right-drag = look, WASD / QE = move, wheel = reach, Tab = touch the gem. Destroyer: left click = punch. Builder: Space = pull, left click = grab / let go, R = tilt (pour). Backspace = restart.
-5. Optional check: **Space Between Us → Run Core Loop Smoke Test** plays the whole loop by itself; look for `[SmokeTest] PASSED` in the Console.
 
 ## Build for Quest
 
-1. Once: **Space Between Us → Build → Prepare Quest Build**.
-2. **File → Build Profiles → Meta Quest** (must be the active profile) → **Build And Run** with the headset plugged in and awake, or **Build** for an `.apk`.
-3. To install an `.apk` yourself: `adb install -r universe.apk` (or drag it into Meta Quest Developer Hub). On the Quest it is under **Unknown sources**.
+1. **File → Build Profiles → Meta Quest** (must be the active profile; package name, target API 34 and the scene are already set) → **Build And Run** with the headset plugged in and awake, or **Build** for an `.apk`.
+2. To install an `.apk` yourself: `adb install -r universe.apk` (or drag it into Meta Quest Developer Hub). On the Quest it is under **Unknown sources**.
 
 If the install step fails with "device not found", wake the headset (put it on) and run Build And Run again.
 
